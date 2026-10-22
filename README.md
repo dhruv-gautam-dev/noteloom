@@ -15,6 +15,7 @@ All system documentation, architectural blueprints, and progress tracking are lo
 - [**05. Backend Working Guide**](./docs/05_BACKEND_WORKING_GUIDE.md) - Detailed plain-language walkthrough of Phase 2 ingestion & fallback code.
 - [**06. Phase 3 Agents Guide**](./docs/06_PHASE3_AGENTS_GUIDE.md) - Deep dive into the 7 multi-agent intelligence core, Gemini integration, and playlist memory.
 - [**07. FastAPI Backend Guide**](./docs/07_FASTAPI_BACKEND_GUIDE.md) - Complete documentation of the FastAPI server, SSE streaming, and REST endpoints.
+- [**08. React Frontend Guide**](./docs/08_REACT_FRONTEND_GUIDE.md) - Overview of the React UI, Live Agent Stepper, and interactive flashcards.
 - [**Project Status & Roadmap**](./docs/PROJECT_STATUS.md) - Current status ("Where are we?") and upcoming milestones.
 
 ---

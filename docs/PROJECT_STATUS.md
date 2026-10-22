@@ -1,7 +1,7 @@
 # NoteLoom V2: Project Status & Roadmap
 
-> **Current Status:** 🟢 **Phase 4 Complete (FastAPI Server, Background Jobs & Real-Time SSE Stream Verified)**  
-> **Next Step:** 🚀 **Phase 5 Implementation (React Frontend Web UI & Markdown Viewer)**
+> **Current Status:** 🟢 **Phase 5 Complete (Full-Stack NoteLoom V2 Ready!)**  
+> **Next Step:** 🚀 **End-to-End Application Launch & Usage**
 
 ---
 
@@ -10,16 +10,16 @@
 - [x] **Phase 1 (Architecture & Strategy):** System blueprint, 7-agent roster, interview templates, fallback specifications, and tech stack chosen.
 - [x] **Phase 2 (Schemas, Ingestion & Fallback Engine):** Pydantic models, YouTube metadata extraction, caption cleaner, fallback note renderer, and test suite.
 - [x] **Phase 3 (Multi-Agent Intelligence Core & Memory):** Gemini structured SDK integration, Concept Extractor, Staff Interviewer, Critic, Writer, and Playlist Memory agents.
-- [x] **Phase 4 (FastAPI Server & Real-Time Streaming):**
-  - [x] Created `backend/app/jobs.py`: `JobManager` for tracking asynchronous execution state and broadcasting events to multiple SSE subscriber queues with history replay and keep-alive pinging.
-  - [x] Created `backend/app/main.py`: Full FastAPI application with CORS middleware.
-  - [x] Implemented `POST /api/jobs` (starts async background pipeline and returns job ID).
-  - [x] Implemented `GET /api/jobs/{id}/stream` (Server-Sent Events / SSE real-time streaming).
-  - [x] Implemented `GET /api/jobs/{id}` (inspect job status and events).
-  - [x] Implemented `GET /api/notes` & `GET /api/notes/{filename}` (vault inspection and raw note retrieval for frontend viewer).
-  - [x] Implemented `GET /api/download/vault` (zips and streams entire Obsidian vault as a download).
-  - [x] Added automated API tests (`backend/tests/test_phase4.py`) — **14/14 total unit and integration tests passing**.
-  - [x] Added `docs/07_FASTAPI_BACKEND_GUIDE.md`.
+- [x] **Phase 4 (FastAPI Server & Real-Time Streaming):** FastAPI application with background workers, SSE streaming (`/api/jobs/{id}/stream`), vault management, and 14 passing automated tests.
+- [x] **Phase 5 (React Frontend Web UI):**
+  - [x] Scaffolded modern React app using Vite & Tailwind CSS in `frontend/`.
+  - [x] Created `Header` with live FastAPI health status and "Export Vault (.zip)" button.
+  - [x] Created `AgentStepper`: 7-agent visual timeline with animated spinner, completed badges, and real-time SSE terminal feed.
+  - [x] Created `VaultSidebar`: instant search & filter for generated Obsidian notes.
+  - [x] Created `NoteViewer`: renders Obsidian callout boxes (`[!NOTE]`, `[!DANGER]`, `[!WARNING]`), trade-off comparison tables, and code snippets.
+  - [x] Created `FlashcardModal`: interactive flip-card study mode for rapid-fire technical interview questions.
+  - [x] Verified production build (`npm run build` compiled cleanly in 4.5s).
+  - [x] Added `docs/08_REACT_FRONTEND_GUIDE.md`.
 
 ---
 
@@ -30,7 +30,7 @@ flowchart LR
     P1["Phase 1:\nArchitecture & Strategy\n(Completed)"] --> P2["Phase 2:\nSchemas & Ingestion\n(Completed)"]
     P2 --> P3["Phase 3:\nMulti-Agent Brain\n(Completed)"]
     P3 --> P4["Phase 4:\nFastAPI Backend\n(Completed)"]
-    P4 --> P5["Phase 5:\nReact Frontend\n(In Progress)"]
+    P4 --> P5["Phase 5:\nReact Frontend\n(Completed)"]
 ```
 
 ### Phase 1: Architecture & Knowledge Base (Done)
@@ -41,6 +41,7 @@ flowchart LR
 - [x] `docs/05_BACKEND_WORKING_GUIDE.md` - Plain-language walkthrough of Phase 2 backend.
 - [x] `docs/06_PHASE3_AGENTS_GUIDE.md` - Plain-language guide to Phase 3 agents & memory.
 - [x] `docs/07_FASTAPI_BACKEND_GUIDE.md` - FastAPI server, SSE stream, and REST endpoints.
+- [x] `docs/08_REACT_FRONTEND_GUIDE.md` - React UI, live agent stepper & flashcards.
 - [x] `docs/PROJECT_STATUS.md` - Live status log.
 
 ### Phase 2: Schemas & Ingestion Engine (Done)
@@ -68,9 +69,10 @@ flowchart LR
 - [x] Implement vault ZIP export endpoint (`GET /api/download/vault`).
 - [x] Automated API testing (`backend/tests/test_phase4.py`).
 
-### Phase 5: React Web UI (Next)
-- [ ] Scaffold Vite + React frontend in `frontend/`.
-- [ ] Build YouTube URL submission & status dashboard.
-- [ ] Build live agent pipeline visualization (stepper showing which agent is working in real time).
-- [ ] Build Obsidian-like Markdown Viewer with syntax highlighting and flashcard mode.
+### Phase 5: React Web UI (Done)
+- [x] Scaffold Vite + React frontend in `frontend/`.
+- [x] Build YouTube URL submission & status dashboard.
+- [x] Build live agent pipeline visualization (stepper showing which agent is working in real time).
+- [x] Build Obsidian-like Markdown Viewer with syntax highlighting and flashcard mode.
+- [x] Build interactive Active-Recall Flashcard modal.
 
