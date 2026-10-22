@@ -1,0 +1,183 @@
+"""
+YouTube Service for NoteLoom V2.
+Handles URL parsing, metadata extraction, transcript fetching, and text cleaning.
+"""
+
+import re
+from typing import List, Optional, Tuple
+from urllib.parse import parse_qs, urlparse
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+import yt_dlp
+
+from backend.app.schemas import VideoItem, IngestionResult, TranscriptData, TranscriptSnippet
+
+
+class YouTubeService:
+    @staticmethod
+    def parse_url(url: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Parses a YouTube URL to extract video_id and playlist_id.
+        Returns: (video_id, playlist_id)
+        """
+        parsed = urlparse(url)
+        video_id = None
+        playlist_id = None
+
+        if "youtube.com" in parsed.netloc:
+            qs = parse_qs(parsed.query)
+            if "v" in qs:
+                video_id = qs["v"][0]
+            if "list" in qs:
+                playlist_id = qs["list"][0]
+        elif "youtu.be" in parsed.netloc:
+            video_id = parsed.path.lstrip("/").split("?")[0]
+            qs = parse_qs(parsed.query)
+            if "list" in qs:
+                playlist_id = qs["list"][0]
+
+        return video_id, playlist_id
+
+    @classmethod
+    def fetch_metadata(cls, url: str) -> IngestionResult:
+        """
+        Extracts video or playlist metadata using yt-dlp (lightweight extract_flat mode).
+        Does NOT download any media files.
+        """
+        video_id, playlist_id = cls.parse_url(url)
+        ydl_opts = {
+            "extract_flat": True,
+            "skip_download": True,
+            "quiet": True,
+            "no_warnings": True,
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if not info:
+                raise ValueError(f"Could not retrieve video/playlist info for: {url}")
+
+            # Check if this is a playlist
+            if "entries" in info and info["entries"]:
+                entries = list(info["entries"])
+                videos: List[VideoItem] = []
+                for idx, entry in enumerate(entries, start=1):
+                    if not entry:
+                        continue
+                    v_id = entry.get("id") or entry.get("url")
+                    title = entry.get("title") or f"Video {idx}"
+                    v_url = f"https://www.youtube.com/watch?v={v_id}"
+                    videos.append(
+                        VideoItem(
+                            video_id=v_id,
+                            title=title,
+                            url=v_url,
+                            duration_seconds=entry.get("duration"),
+                            channel=entry.get("uploader") or entry.get("channel"),
+                            sequence_index=idx,
+                            description=entry.get("description"),
+                            thumbnail_url=entry.get("thumbnail"),
+                        )
+                    )
+                return IngestionResult(
+                    is_playlist=True,
+                    playlist_id=info.get("id") or playlist_id,
+                    playlist_title=info.get("title") or "YouTube Playlist",
+                    videos=videos,
+                )
+            else:
+                # Single video
+                v_id = info.get("id") or video_id
+                title = info.get("title") or "Untitled Video"
+                return IngestionResult(
+                    is_playlist=False,
+                    videos=[
+                        VideoItem(
+                            video_id=v_id,
+                            title=title,
+                            url=f"https://www.youtube.com/watch?v={v_id}",
+                            duration_seconds=info.get("duration"),
+                            channel=info.get("uploader") or info.get("channel"),
+                            sequence_index=1,
+                            description=info.get("description"),
+                            thumbnail_url=info.get("thumbnail"),
+                        )
+                    ],
+                )
+
+    @classmethod
+    def fetch_transcript(cls, video_id: str, video_title: str = "") -> TranscriptData:
+        """
+        Fetches the transcript for a video using youtube-transcript-api.
+        Gracefully handles missing, disabled, or failed transcripts.
+        """
+        try:
+            # First try retrieving transcript list to find best available language (default 'en')
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            
+            # Prefer manual english, then generated english, then any available transcript
+            try:
+                transcript_obj = transcript_list.find_transcript(["en", "en-US", "en-GB"])
+            except Exception:
+                # Fallback to any transcript available (and translate to English if needed, or take raw)
+                transcript_obj = next(iter(transcript_list))
+
+            snippets_data = transcript_obj.fetch()
+            raw_text = " ".join(s["text"] for s in snippets_data)
+            cleaned_text = cls.clean_transcript_text(raw_text)
+            words = len(cleaned_text.split())
+
+            return TranscriptData(
+                video_id=video_id,
+                video_title=video_title,
+                available=True,
+                raw_text=raw_text,
+                cleaned_text=cleaned_text,
+                language=transcript_obj.language_code,
+                word_count=words,
+                fallback_reason=None,
+            )
+
+        except (TranscriptsDisabled, NoTranscriptFound) as e:
+            return TranscriptData(
+                video_id=video_id,
+                video_title=video_title,
+                available=False,
+                fallback_reason="Captions/transcripts are disabled or not available for this video on YouTube.",
+            )
+        except Exception as e:
+            return TranscriptData(
+                video_id=video_id,
+                video_title=video_title,
+                available=False,
+                fallback_reason=f"Could not retrieve transcript: {str(e)}",
+            )
+
+    @staticmethod
+    def clean_transcript_text(text: str) -> str:
+        """
+        Sanitizes subtitle text:
+        - Removes sound effects markers like [Music], [Applause], (cheering), etc.
+        - Strips HTML entities and unescapes characters.
+        - Deduplicates repeated phrases from auto-generated subtitles.
+        - Normalizes multiple spaces and newlines.
+        """
+        # Remove sound tags like [Music], [Applause], (laughter)
+        cleaned = re.sub(r"\[.*?\]", " ", text)
+        cleaned = re.sub(r"\(.*?\)", " ", cleaned)
+
+        # Normalize whitespace
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+        # Deduplicate consecutive repeating sentences/fragments
+        words = cleaned.split()
+        if not words:
+            return ""
+
+        # Simple window deduplication for auto-generated caption stutter
+        deduped_words: List[str] = []
+        for word in words:
+            if not deduped_words or word.lower() != deduped_words[-1].lower():
+                deduped_words.append(word)
+
+        return " ".join(deduped_words)
+

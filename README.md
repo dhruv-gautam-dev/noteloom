@@ -12,6 +12,7 @@ All system documentation, architectural blueprints, and progress tracking are lo
 - [**02. Multi-Agent Architecture**](./docs/02_MULTI_AGENT_ARCHITECTURE.md) - Breakdown of the 7 specialized AI agents and their inputs/outputs.
 - [**03. Interview Note Template**](./docs/03_INTERVIEW_NOTE_TEMPLATE.md) - Obsidian-ready note layout (with callouts, flashcards) & fallback template.
 - [**04. System Workflow & Stack**](./docs/04_SYSTEM_WORKFLOW_AND_STACK.md) - FastAPI backend, React web UI, Gemini API, and data flow.
+- [**05. Backend Working Guide**](./docs/05_BACKEND_WORKING_GUIDE.md) - Detailed plain-language walkthrough of all backend code built in Phase 2.
 - [**Project Status & Roadmap**](./docs/PROJECT_STATUS.md) - Current status ("Where are we?") and upcoming milestones.
 
 ---

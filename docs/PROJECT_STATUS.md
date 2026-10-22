@@ -1,21 +1,21 @@
 # NoteLoom V2: Project Status & Roadmap
 
-> **Current Status:** 🟢 **Phase 1 Complete (System Architecture & Strategy Locked)**  
-> **Next Step:** 🚀 **Phase 2 Implementation (Backend Core & Agent Schemas)**
+> **Current Status:** 🟢 **Phase 2 Complete (Ingestion, Schemas & Fallback Engine Verified)**  
+> **Next Step:** 🚀 **Phase 3 Implementation (Multi-Agent Brain: Concept + Interviewer + Writer + Gemini Client)**
 
 ---
 
 ## 📍 Where Are We Right Now?
 
-We have finalized the system blueprint, requirements, and multi-agent roles:
-- [x] Defined the multi-agent architecture and individual agent responsibilities.
-- [x] Established interview-oriented note structures (60-sec elevator pitch, under the hood, trade-offs, candidate traps, mock Q&A, cheat sheet, flashcards).
-- [x] Locked the fallback rule: generate an informative Obsidian note when transcripts are missing rather than failing silently.
-- [x] Decided the technology stack:
-  - **Backend:** FastAPI (Python 3.11+) + Pydantic v2 + Google GenAI (Gemini 2.5 Flash / Pro).
-  - **Frontend:** React (Vite + Tailwind CSS).
-  - **Output:** Obsidian-ready markdown vault with callouts, wikilinks, and `#flashcards`.
-- [x] Initialized documentation repository inside `docs/`.
+- [x] **Phase 1 (Architecture & Strategy):** System blueprint, 7-agent roster, interview templates, fallback specifications, and tech stack chosen.
+- [x] **Phase 2 (Schemas, Ingestion & Fallback Engine):**
+  - [x] Initialized Python environment (`.venv`) with Python 3.14 + `fastapi`, `pydantic v2`, `google-genai`, `youtube-transcript-api`, `yt-dlp`.
+  - [x] Created `backend/app/schemas.py`: strictly typed models for `VideoItem`, `IngestionResult`, `TranscriptData`, `VideoConcepts`, `InterviewPrepPack`, `RenderedNote`, and `JobEvent`.
+  - [x] Created `backend/app/config.py`: dynamic configuration with `.env` loader.
+  - [x] Created `backend/app/services/youtube_service.py`: URL parser, metadata extractor (single & playlist), caption fetcher, and subtitle noise cleaner.
+  - [x] Created `backend/app/services/vault_service.py`: Obsidian Markdown renderer with callouts, front matter, and missing-transcript fallback note generator.
+  - [x] Created `backend/app/agents/ingestion_agent.py` & `transcript_agent.py`: agent workflows with real-time streaming event generation.
+  - [x] Verified Phase 2 with automated pytest suite (`4/4 tests passed`).
 
 ---
 
@@ -23,7 +23,7 @@ We have finalized the system blueprint, requirements, and multi-agent roles:
 
 ```mermaid
 flowchart LR
-    P1["Phase 1:\nArchitecture & Strategy\n(Completed)"] --> P2["Phase 2:\nSchemas & Ingestion\n(In Progress)"]
+    P1["Phase 1:\nArchitecture & Strategy\n(Completed)"] --> P2["Phase 2:\nSchemas & Ingestion\n(Completed)"]
     P2 --> P3["Phase 3:\nMulti-Agent Brain\n(Concept + Interviewer + Writer)"]
     P3 --> P4["Phase 4:\nFastAPI Backend\n(Async Jobs + SSE Streaming)"]
     P4 --> P5["Phase 5:\nReact Frontend\n(Live UI + Note Viewer)"]
@@ -34,19 +34,23 @@ flowchart LR
 - [x] `docs/02_MULTI_AGENT_ARCHITECTURE.md` - Agent specifications and lifecycle.
 - [x] `docs/03_INTERVIEW_NOTE_TEMPLATE.md` - Full Obsidian template and fallback rules.
 - [x] `docs/04_SYSTEM_WORKFLOW_AND_STACK.md` - API endpoints, streaming, and data flow.
-- [x] `docs/PROJECT_STATUS.md` - This status log.
+- [x] `docs/05_BACKEND_WORKING_GUIDE.md` - Plain-language walkthrough of backend code & execution.
+- [x] `docs/PROJECT_STATUS.md` - Live status log.
 
-### Phase 2: Schemas & Ingestion Engine (Next)
-- [ ] Set up Python environment and `requirements.txt`.
-- [ ] Define Pydantic v2 schemas (`VideoMetadata`, `VideoConcepts`, `InterviewPrepPack`, `VideoNote`, `JobStatus`).
-- [ ] Implement **Ingestion Agent** (YouTube URL parser, playlist expansion).
-- [ ] Implement **Transcript & Cleaner Agent** (caption fetching with missing-caption fallback).
+### Phase 2: Schemas & Ingestion Engine (Done)
+- [x] Set up Python environment and `requirements.txt`.
+- [x] Define Pydantic v2 schemas (`VideoItem`, `TranscriptData`, `VideoConcepts`, `InterviewPrepPack`, `RenderedNote`, `JobEvent`).
+- [x] Implement **Ingestion Agent** (YouTube URL parser, playlist expansion).
+- [x] Implement **Transcript & Cleaner Agent** (caption fetching with missing-caption fallback).
+- [x] Implement **Vault Service** (generates Obsidian notes and fallback notes).
+- [x] Add automated unit tests (`backend/tests/test_phase2.py`).
 
-### Phase 3: Multi-Agent Intelligence Core
-- [ ] Implement **Concept Extractor Agent** with strict transcript grounding.
-- [ ] Implement **Staff Interviewer Agent** (FAANG questions, trade-offs, traps).
-- [ ] Implement **Obsidian Notes Architect** (markdown rendering + flashcards).
-- [ ] Implement **Critic Agent** (grounding check and `[EXTRA]` tagging).
+### Phase 3: Multi-Agent Intelligence Core (Next)
+- [ ] Implement Gemini client service (`gemini-2.5-flash` and `gemini-2.5-pro` via `google-genai`).
+- [ ] Implement **Concept Extractor Agent** with strict transcript grounding & verbatim evidence.
+- [ ] Implement **Staff Interviewer Agent** (FAANG questions, trade-offs, candidate red flags).
+- [ ] Implement **Writer Agent** (renders structured interview notes + `#flashcards`).
+- [ ] Implement **Critic Agent** (grounding audit & tag external extensions).
 - [ ] Implement **Playlist Memory** (cross-linking and cumulative `GLOSSARY.md`).
 
 ### Phase 4: FastAPI Server & Real-Time Streaming
