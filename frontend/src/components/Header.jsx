@@ -109,45 +109,48 @@ export default function Header({
 
   return (
     <header className={`border-b backdrop-blur-md sticky top-0 z-40 transition-colors duration-200 ${headerTheme.bg}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-15 py-2.5 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 min-h-[3.5rem] sm:min-h-[4rem] py-2 flex items-center justify-between gap-2 sm:gap-4">
         {/* Brand */}
-        <div className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-xs ${headerTheme.logoBg}`}>
-            <BookOpen className="w-5 h-5 text-white" />
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shadow-xs shrink-0 ${headerTheme.logoBg}`}>
+            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className={`font-bold text-base tracking-tight ${headerTheme.text}`}>NoteLoom</span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${headerTheme.chip}`}>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className={`font-bold text-sm sm:text-base tracking-tight ${headerTheme.text}`}>NoteLoom</span>
+              <span className={`hidden sm:inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full border ${headerTheme.chip}`}>
                 STUDY DESK
               </span>
             </div>
-            <p className={`text-[11px] hidden sm:block ${headerTheme.subtext}`}>
+            <p className={`text-[11px] hidden md:block ${headerTheme.subtext}`}>
               Distraction-free technical study notes & mental models
             </p>
           </div>
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Ingest Toggle Button */}
           <button
             onClick={onToggleIngest}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold transition shrink-0 ${
               showIngest
                 ? headerTheme.activeButton
                 : headerTheme.button
             }`}
+            title={showIngest ? 'Reading View' : (isProcessing ? 'Show Pipeline' : 'Ingest Lecture')}
           >
             {showIngest ? (
               <>
-                <ChevronUp className="w-3.5 h-3.5" />
-                <span>Reading View</span>
+                <ChevronUp className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">Reading View</span>
+                <span className="sm:hidden text-xs font-medium">View</span>
               </>
             ) : (
               <>
-                <Plus className="w-3.5 h-3.5" />
-                <span>{isProcessing ? 'Show Pipeline' : 'Ingest Lecture'}</span>
+                <Plus className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">{isProcessing ? 'Show Pipeline' : 'Ingest Lecture'}</span>
+                <span className="sm:hidden text-xs font-medium">{isProcessing ? 'Pipeline' : 'Ingest'}</span>
               </>
             )}
           </button>
@@ -161,10 +164,10 @@ export default function Header({
           {/* Export Button */}
           <button
             onClick={onDownloadVault}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition ${headerTheme.button}`}
+            className={`flex items-center justify-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-xl border text-xs font-medium transition shrink-0 ${headerTheme.button}`}
             title="Download Obsidian Vault as .zip"
           >
-            <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="hidden sm:inline">Export</span>
           </button>
 
@@ -172,26 +175,26 @@ export default function Header({
           {isAdmin && (
             <button
               onClick={onOpenAdmin}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-xs bg-purple-600 hover:bg-purple-500 text-white border-purple-600"
+              className="flex items-center justify-center gap-1.5 p-2 sm:px-3 sm:py-1.5 rounded-xl border text-xs font-bold transition shadow-xs bg-purple-600 hover:bg-purple-500 text-white border-purple-600 shrink-0"
               title="Creator Analytics & Market Telemetry"
             >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Admin</span>
+              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Admin</span>
             </button>
           )}
 
           {/* User Authentication Pill / Sign In Button */}
           {user ? (
-            <div className="flex items-center gap-2 pl-2 border-l border-black/10 dark:border-white/10">
+            <div className="flex items-center gap-1.5 sm:gap-2 pl-1.5 sm:pl-2 border-l border-black/10 dark:border-white/10 shrink-0">
               <div
-                className="w-7 h-7 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-xs cursor-default"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-xs cursor-default shrink-0"
                 title={`Signed in as ${user.user_metadata?.full_name || user.email}`}
               >
                 {nameLetters}
               </div>
               <button
                 onClick={onSignOut}
-                className={`p-1.5 rounded-xl border text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition ${headerTheme.button}`}
+                className={`p-1.5 sm:p-2 rounded-xl border text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition shrink-0 ${headerTheme.button}`}
                 title="Sign Out"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -200,11 +203,11 @@ export default function Header({
           ) : (
             <button
               onClick={onOpenAuth}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-xs ${headerTheme.activeButton}`}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-xs shrink-0 ${headerTheme.activeButton}`}
               title="Sign in to save your notes to personal cloud vault"
             >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>Sign In</span>
+              <LogIn className="w-3.5 h-3.5 shrink-0" />
+              <span className="text-xs">Sign In</span>
             </button>
           )}
         </div>
