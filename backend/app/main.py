@@ -1,6 +1,7 @@
 """
 NoteLoom V2 FastAPI Application.
-Provides REST and Server-Sent Events (SSE) endpoints for the React frontend.
+Provides REST and Server-Sent Events (SSE) endpoints for the React frontend,
+along with telemetry event logging and role-protected Admin analytics.
 """
 
 import io
@@ -19,11 +20,17 @@ from backend.app.config import config
 from backend.app.schemas import JobStatus, JobEvent, AgentStep
 from backend.app.jobs import JobManager, JobState
 from backend.app.orchestrator import PipelineOrchestrator
-from backend.app.auth import get_current_user_optional, CurrentUser
+from backend.app.auth import (
+    get_current_user_optional,
+    get_current_user_required,
+    get_current_admin_user,
+    CurrentUser,
+)
+from backend.app.services.analytics_service import AnalyticsService
 
 app = FastAPI(
     title="NoteLoom V2 API",
-    description="Multi-Agent YouTube to Obsidian Interview Prep System",
+    description="Multi-Agent YouTube to Obsidian Interview Prep System with Telemetry & Admin Insights",
     version="2.0.0",
 )
 
@@ -58,6 +65,12 @@ class NoteSummary(BaseModel):
     size_bytes: int
 
 
+class LogEventRequest(BaseModel):
+    event_name: str
+    session_id: Optional[str] = None
+    properties: dict = {}
+
+
 # ==========================================
 # Background Worker
 # ==========================================
@@ -75,6 +88,18 @@ async def run_pipeline_worker(job_id: str, url: str):
         )
         JobManager.complete_job(job_id, notes)
 
+        # Telemetry: Record successful note generation
+        asyncio.create_task(
+            AnalyticsService.log_event(
+                event_name="lecture_ingestion_completed",
+                properties={
+                    "job_id": job_id,
+                    "url": url,
+                    "notes_count": len(notes),
+                },
+            )
+        )
+
     except Exception as e:
         error_msg = f"Pipeline execution failed: {str(e)}"
         JobManager.fail_job(job_id, error_msg)
@@ -90,9 +115,17 @@ async def run_pipeline_worker(job_id: str, url: str):
             ),
         )
 
+        # Telemetry: Record pipeline error
+        asyncio.create_task(
+            AnalyticsService.log_event(
+                event_name="lecture_ingestion_failed",
+                properties={"job_id": job_id, "url": url, "error": error_msg},
+            )
+        )
+
 
 # ==========================================
-# Endpoints
+# Health & Authentication Endpoints
 # ==========================================
 
 @app.get("/api/health")
@@ -117,7 +150,7 @@ def health_check():
 
 @app.get("/api/auth/me")
 def get_auth_me(user: Optional[CurrentUser] = Depends(get_current_user_optional)):
-    """Returns the authenticated user details, or guest status."""
+    """Returns the authenticated user details, admin status, or guest status."""
     if not user:
         return {"authenticated": False, "user": None}
     return {
@@ -126,9 +159,61 @@ def get_auth_me(user: Optional[CurrentUser] = Depends(get_current_user_optional)
             "id": user.user_id,
             "email": user.email,
             "role": user.role,
+            "tier": user.tier,
+            "is_admin": user.is_admin,
         },
     }
 
+
+# ==========================================
+# Telemetry & Admin Endpoints (Phase 4)
+# ==========================================
+
+@app.post("/api/analytics/event")
+async def log_telemetry_event(
+    payload: LogEventRequest,
+    user: Optional[CurrentUser] = Depends(get_current_user_optional),
+):
+    """
+    Public telemetry ingestion endpoint.
+    Records client-side visitor activity, page visits, note views, and conversions.
+    """
+    user_id = user.user_id if user else None
+    await AnalyticsService.log_event(
+        event_name=payload.event_name,
+        user_id=user_id,
+        session_id=payload.session_id,
+        properties=payload.properties,
+    )
+    return {"status": "logged"}
+
+
+@app.get("/api/admin/metrics")
+async def get_admin_metrics(
+    admin: CurrentUser = Depends(get_current_admin_user),
+):
+    """
+    Strictly Admin Protected:
+    Returns high-level platform KPIs, total users, notes generated, and market adoption stats.
+    """
+    return await AnalyticsService.get_admin_metrics()
+
+
+@app.get("/api/admin/events")
+async def get_admin_events(
+    admin: CurrentUser = Depends(get_current_admin_user),
+    limit: int = 50,
+):
+    """
+    Strictly Admin Protected:
+    Returns real-time telemetry activity stream for creator audit and analytics.
+    """
+    return await AnalyticsService.get_admin_events(limit=limit)
+
+
+# ==========================================
+# Pipeline Jobs & Streaming Endpoints
+# ==========================================
 
 @app.post("/api/jobs", response_model=CreateJobResponse)
 async def create_job(payload: CreateJobRequest):
@@ -142,6 +227,14 @@ async def create_job(payload: CreateJobRequest):
 
     job = JobManager.create_job(url)
     asyncio.create_task(run_pipeline_worker(job.job_id, url))
+
+    # Telemetry: Ingestion triggered
+    asyncio.create_task(
+        AnalyticsService.log_event(
+            event_name="lecture_ingestion_started",
+            properties={"url": url, "job_id": job.job_id},
+        )
+    )
 
     return CreateJobResponse(job_id=job.job_id, status=job.status, url=job.url)
 
@@ -184,6 +277,10 @@ async def stream_job_events(job_id: str):
         },
     )
 
+
+# ==========================================
+# Note Storage & Export Endpoints
+# ==========================================
 
 @app.get("/api/notes", response_model=List[NoteSummary])
 def list_notes():
@@ -256,4 +353,3 @@ def clear_vault():
             except Exception:
                 pass
     return {"status": "cleared", "deleted_count": count}
-

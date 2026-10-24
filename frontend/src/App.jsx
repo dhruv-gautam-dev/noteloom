@@ -5,6 +5,7 @@ import AgentStepper from './components/AgentStepper';
 import VaultSidebar from './components/VaultSidebar';
 import NoteViewer from './components/NoteViewer';
 import AuthModal from './components/AuthModal';
+import AdminDashboardModal from './components/AdminDashboardModal';
 import { supabase, signOut, getSession } from './utils/supabaseClient';
 import {
   getVaultNotes,
@@ -14,6 +15,11 @@ import {
   clearActiveVault,
   exportNotesAsZip,
 } from './utils/vaultManager';
+import {
+  trackPageView,
+  trackNoteViewed,
+  trackVaultExport,
+} from './utils/analytics';
 
 export default function App() {
   const [url, setUrl] = useState('');
@@ -28,6 +34,9 @@ export default function App() {
 
   // User Authentication State
   const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+
   const userRef = useRef(null);
   useEffect(() => {
     userRef.current = user;
@@ -43,6 +52,78 @@ export default function App() {
   // Reading Experience Settings (Default to the loved 'zen' green leaves mode!)
   const [theme, setTheme] = useState('zen'); // 'zen' | 'purple' | 'dark'
   const [isZenMode, setIsZenMode] = useState(false);
+
+  // Verifies if the authenticated user has Admin role (strictly checks role or tier is 'admin')
+  const checkAdminAccess = async (activeUser) => {
+    if (!activeUser) {
+      setIsAdmin(false);
+      return;
+    }
+
+    // 1. Check user metadata or app metadata from Supabase auth token
+    const metaRole = activeUser.user_metadata?.role || activeUser.app_metadata?.role;
+    const metaTier = activeUser.user_metadata?.tier || activeUser.app_metadata?.tier;
+    if (metaRole === 'admin' || metaTier === 'admin') {
+      setIsAdmin(true);
+      return;
+    }
+
+    // 2. Query Supabase profiles table directly for tier or role
+    if (supabase) {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('tier')
+          .eq('id', activeUser.id)
+          .maybeSingle();
+
+        if (profile?.tier === 'admin') {
+          setIsAdmin(true);
+          return;
+        }
+      } catch (err) {
+        console.debug('Supabase profile tier check error:', err);
+      }
+
+      // Check role column as well if present
+      try {
+        const { data: roleData } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', activeUser.id)
+          .maybeSingle();
+
+        if (roleData?.role === 'admin') {
+          setIsAdmin(true);
+          return;
+        }
+      } catch {
+        // role column may not exist yet in schema, tier check above handles it
+      }
+    }
+
+    // 3. Query backend /api/auth/me for server-validated role/tier
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      if (token) {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const body = await res.json();
+          if (body?.user?.is_admin || body?.user?.role === 'admin' || body?.user?.tier === 'admin') {
+            setIsAdmin(true);
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      console.debug('Backend admin check error:', err);
+    }
+
+    setIsAdmin(false);
+  };
 
   // Fetch existing notes (from Supabase Cloud if user is signed in, or Guest storage)
   const refreshNotes = async (activeUser = userRef.current) => {
@@ -73,6 +154,8 @@ export default function App() {
     sessionStorage.removeItem('noteloom_guest_notes');
     setUser(null);
     userRef.current = null;
+    setIsAdmin(false);
+    setAdminModalOpen(false);
     setNotes([]);
     setSelectedFilename(null);
     setSelectedContent(null);
@@ -109,6 +192,9 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Track initial page view telemetry
+    trackPageView('/');
+
     // Hidden by default on first visit
     setShowIngest(false);
     checkLatestJob();
@@ -120,6 +206,7 @@ export default function App() {
         setUser(currentUser);
         userRef.current = currentUser;
         setShowIngest(false); // Hidden when session loads
+        checkAdminAccess(currentUser);
         if (currentUser) {
           await adoptGuestNotesToUser(currentUser);
           refreshNotes(currentUser);
@@ -138,6 +225,8 @@ export default function App() {
           sessionStorage.removeItem('noteloom_guest_notes');
           setUser(null);
           userRef.current = null;
+          setIsAdmin(false);
+          setAdminModalOpen(false);
           setNotes([]);
           setSelectedFilename(null);
           setSelectedContent(null);
@@ -148,6 +237,7 @@ export default function App() {
 
         // Hidden on sign in
         setShowIngest(false); // Ingest model must NOT be visible on sign in
+        checkAdminAccess(currentUser);
 
         if (currentUser) {
           const count = await adoptGuestNotesToUser(currentUser);
@@ -171,6 +261,8 @@ export default function App() {
       const content = await getVaultNoteContent(filename, activeUser, currentNotes);
       if (content) {
         setSelectedContent(content);
+        const noteObj = currentNotes.find((n) => n.filename === filename);
+        trackNoteViewed(filename, noteObj?.title || filename, noteObj?.topic || 'General');
       }
     } catch (err) {
       console.error('Failed to load note content:', err);
@@ -288,6 +380,7 @@ export default function App() {
 
   const handleDownloadVault = async () => {
     try {
+      trackVaultExport(notes.length);
       await exportNotesAsZip(notes, user);
     } catch (err) {
       console.warn('Browser zip export fallback to server:', err);
@@ -328,6 +421,8 @@ export default function App() {
         user={user}
         onOpenAuth={() => setAuthModalOpen(true)}
         onSignOut={handleSignOut}
+        isAdmin={isAdmin}
+        onOpenAdmin={() => setAdminModalOpen(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 lg:p-6 flex flex-col gap-4">
@@ -487,6 +582,15 @@ export default function App() {
         onClose={() => setAuthModalOpen(false)}
         theme={theme}
       />
+
+      {/* Admin Only: Creator Telemetry & Market Analytics Modal */}
+      {isAdmin && (
+        <AdminDashboardModal
+          isOpen={adminModalOpen}
+          onClose={() => setAdminModalOpen(false)}
+          theme={theme}
+        />
+      )}
     </div>
   );
 }

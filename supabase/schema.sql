@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     email TEXT,
     full_name TEXT,
     avatar_url TEXT,
+    role TEXT DEFAULT 'user' CHECK (role IN ('user', 'pro', 'admin')),
     tier TEXT DEFAULT 'free' CHECK (tier IN ('free', 'pro', 'admin')),
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL

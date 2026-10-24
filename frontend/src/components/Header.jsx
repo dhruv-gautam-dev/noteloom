@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Download, Plus, ChevronUp, Leaf, LogIn, LogOut, User as UserIcon } from 'lucide-react';
+import { BookOpen, Download, Plus, ChevronUp, Leaf, LogIn, LogOut, User as UserIcon, ShieldCheck } from 'lucide-react';
 
 export default function Header({
   onDownloadVault,
@@ -10,6 +10,8 @@ export default function Header({
   user = null,
   onOpenAuth,
   onSignOut,
+  isAdmin = false,
+  onOpenAdmin,
 }) {
   const [backendOnline, setBackendOnline] = useState(false);
 
@@ -21,6 +23,37 @@ export default function Header({
       })
       .catch(() => setBackendOnline(false));
   }, []);
+
+  const getNameLetters = () => {
+    if (!user) return 'U';
+    const fullName = (user.user_metadata?.full_name || user.user_metadata?.name || '').trim();
+    if (fullName) {
+      const parts = fullName.split(/\s+/).filter(Boolean);
+      if (parts.length >= 2) {
+        return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+      }
+      if (parts[0].length >= 2) {
+        return `${parts[0][0]}${parts[0][parts[0].length - 1]}`.toUpperCase();
+      }
+      return parts[0][0].toUpperCase();
+    }
+
+    if (user.email) {
+      const handle = user.email.split('@')[0];
+      const emailParts = handle.split(/[._-]/).filter(Boolean);
+      if (emailParts.length >= 2) {
+        return `${emailParts[0][0]}${emailParts[emailParts.length - 1][0]}`.toUpperCase();
+      }
+      if (handle.length >= 2) {
+        return `${handle[0]}${handle[handle.length - 1]}`.toUpperCase();
+      }
+      return handle[0]?.toUpperCase() || 'U';
+    }
+
+    return 'U';
+  };
+
+  const nameLetters = getNameLetters();
 
   const headerTheme = {
     zen: {
@@ -135,19 +168,26 @@ export default function Header({
             <span className="hidden sm:inline">Export</span>
           </button>
 
+          {/* Admin Analytics Button (Strictly Admin Only) */}
+          {isAdmin && (
+            <button
+              onClick={onOpenAdmin}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-xs bg-purple-600 hover:bg-purple-500 text-white border-purple-600"
+              title="Creator Analytics & Market Telemetry"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Admin</span>
+            </button>
+          )}
+
           {/* User Authentication Pill / Sign In Button */}
           {user ? (
             <div className="flex items-center gap-2 pl-2 border-l border-black/10 dark:border-white/10">
               <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 text-xs"
-                title={`Signed in as ${user.email}`}
+                className="w-7 h-7 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-xs cursor-default"
+                title={`Signed in as ${user.user_metadata?.full_name || user.email}`}
               >
-                <div className="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center">
-                  {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
-                </div>
-                <span className="hidden sm:inline text-xs font-semibold max-w-[100px] truncate">
-                  {user.user_metadata?.full_name || user.email?.split('@')[0]}
-                </span>
+                {nameLetters}
               </div>
               <button
                 onClick={onSignOut}
