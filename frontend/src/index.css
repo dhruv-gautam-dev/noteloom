@@ -89,3 +89,91 @@
   @apply text-emerald-400 font-semibold mb-1 flex items-center gap-2;
 }
 
+/* ==========================================================================
+   VS Code Dark+ Syntax Highlighting Theme
+   Matches standard Visual Studio Code Dark+ theme tokens exactly
+   ========================================================================== */
+
+.vscode-theme {
+  background-color: #1e1e1e !important;
+  color: #d4d4d4 !important;
+}
+
+.vscode-theme pre,
+.vscode-theme code {
+  font-family: 'Cascadia', 'Fira Code', 'Consolas', 'Courier New', monospace !important;
+  background-color: transparent !important;
+}
+
+/* VS Code Comments (Classic Sage Green, Italic) */
+.vscode-theme .token.comment,
+.vscode-theme .token.prolog,
+.vscode-theme .token.doctype,
+.vscode-theme .token.cdata {
+  color: #6a9955 !important;
+  font-style: italic !important;
+}
+
+/* Punctuation (Brackets, Parentheses, Colons) */
+.vscode-theme .token.punctuation {
+  color: #d4d4d4 !important;
+}
+
+/* VS Code Keywords (def, return, if, for, class, import, while, from) */
+.vscode-theme .token.keyword {
+  color: #c586c0 !important;
+  font-weight: 600 !important;
+}
+
+/* Boolean constants (True, False, None) */
+.vscode-theme .token.boolean,
+.vscode-theme .token.constant {
+  color: #569cd6 !important;
+}
+
+/* Numbers (1, 42, 3.14) */
+.vscode-theme .token.number {
+  color: #b5cea8 !important;
+}
+
+/* Strings ("...", '...', f"...") */
+.vscode-theme .token.string,
+.vscode-theme .token.char {
+  color: #ce9178 !important;
+}
+
+/* Functions & Method Invocations */
+.vscode-theme .token.function {
+  color: #dcdcaa !important;
+}
+
+/* Classes & Built-in types (int, str, list, dict, print, len) */
+.vscode-theme .token.class-name,
+.vscode-theme .token.builtin {
+  color: #4ec9b0 !important;
+}
+
+/* Variables, Identifiers & Properties */
+.vscode-theme .token.variable,
+.vscode-theme .token.property {
+  color: #9cdcfe !important;
+}
+
+/* Operators (=, +, -, ==, !=) */
+.vscode-theme .token.operator {
+  color: #d4d4d4 !important;
+}
+
+/* Decorators (@classmethod, @property) */
+.vscode-theme .token.decorator,
+.vscode-theme .token.atrule {
+  color: #dcdcaa !important;
+}
+
+/* Regex & Errors */
+.vscode-theme .token.regex,
+.vscode-theme .token.important {
+  color: #d16969 !important;
+}
+
+

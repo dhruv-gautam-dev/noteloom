@@ -30,6 +30,7 @@ import {
   Layers
 } from 'lucide-react';
 import FlashcardModal from './FlashcardModal';
+import CodeBlock from './CodeBlock';
 import { parseNoteContent } from '../utils/noteParser';
 
 export default function NoteViewer({
@@ -652,31 +653,18 @@ export default function NoteViewer({
               {/* Minimal Working Code Snippet */}
               {parsed.code && (
                 <section className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Code2 className="w-4 h-4 text-emerald-500" />
-                      <h2 className={`text-base sm:text-lg font-bold tracking-tight ${themeStyles.textHeading}`}>
-                        Complete Minimal Working Example
-                      </h2>
-                    </div>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(parsed.code);
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
-                      }}
-                      className="text-xs text-slate-400 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800"
-                    >
-                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>Copy Code</span>
-                    </button>
+                  <div className="flex items-center gap-2">
+                    <Code2 className="w-4 h-4 text-emerald-500" />
+                    <h2 className={`text-base sm:text-lg font-bold tracking-tight ${themeStyles.textHeading}`}>
+                      Complete Minimal Working Example
+                    </h2>
                   </div>
 
-                  <div className={`rounded-2xl p-4 sm:p-5 font-mono text-xs overflow-x-auto shadow-inner ${themeStyles.codeBg}`}>
-                    <pre className="text-emerald-300">
-                      <code>{parsed.code}</code>
-                    </pre>
-                  </div>
+                  <CodeBlock
+                    code={parsed.code}
+                    language="python"
+                    filename="minimal_example.py"
+                  />
                 </section>
               )}
 
@@ -751,15 +739,21 @@ export default function NoteViewer({
                       {children}
                     </div>
                   ),
-                  code: ({ node, inline, children, ...props }) => {
+                  code: ({ node, inline, className, children, ...props }) => {
+                    const match = /language-(\w+)/.exec(className || '');
+                    const language = match ? match[1] : 'python';
+                    const codeString = String(children).replace(/\n$/, '');
+
                     return inline ? (
-                      <code className="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono text-xs text-emerald-700 dark:text-emerald-300" {...props}>
+                      <code className="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono text-xs text-emerald-700 dark:text-emerald-300 font-semibold" {...props}>
                         {children}
                       </code>
                     ) : (
-                      <code className="block p-4 rounded-xl bg-slate-900 text-emerald-300 font-mono text-xs overflow-x-auto" {...props}>
-                        {children}
-                      </code>
+                      <CodeBlock
+                        code={codeString}
+                        language={language}
+                        filename={`snippet.${language === 'python' ? 'py' : language === 'javascript' ? 'js' : language === 'bash' ? 'sh' : 'txt'}`}
+                      />
                     );
                   },
                 }}
