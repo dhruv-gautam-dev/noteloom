@@ -34,6 +34,12 @@ class AppConfig(BaseModel):
     vault_dir: Path = ROOT_DIR / os.getenv("DEFAULT_VAULT_PATH", "notes_vault")
     data_dir: Path = ROOT_DIR / "data"
 
+    # Supabase Cloud & Auth Settings
+    supabase_url: str = Field(default_factory=lambda: os.getenv("SUPABASE_URL", ""))
+    supabase_anon_key: str = Field(default_factory=lambda: os.getenv("SUPABASE_ANON_KEY", ""))
+    supabase_jwt_secret: str = Field(default_factory=lambda: os.getenv("SUPABASE_JWT_SECRET", ""))
+    supabase_service_role_key: str = Field(default_factory=lambda: os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""))
+
     # Server settings
     host: str = os.getenv("HOST", "127.0.0.1")
     port: int = int(os.getenv("PORT", "8000"))

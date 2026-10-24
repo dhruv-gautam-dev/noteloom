@@ -103,3 +103,30 @@ def test_sse_stream_dispatch():
                 assert "Test event dispatched" in line
                 break
 
+
+def test_auth_me_guest():
+    response = client.get("/api/auth/me")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["authenticated"] is False
+    assert data["user"] is None
+
+
+def test_auth_me_authenticated():
+    import jwt
+    secret = "a_very_secure_test_jwt_secret_key_123456789"
+    token = jwt.encode(
+        {"sub": "user_12345", "email": "test@example.com", "role": "authenticated", "aud": "authenticated"},
+        secret,
+        algorithm="HS256",
+    )
+    with patch.object(config, "supabase_jwt_secret", secret):
+        response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["authenticated"] is True
+        assert data["user"]["id"] == "user_12345"
+        assert data["user"]["email"] == "test@example.com"
+    assert data["user"]["email"] == "test@example.com"
+
+

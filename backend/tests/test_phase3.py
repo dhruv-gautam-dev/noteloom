@@ -28,6 +28,7 @@ from backend.app.schemas import (
     ConceptInterviewQuestion,
 )
 from backend.app.services.vault_service import VaultService
+from backend.app.services.gemini_service import GeminiService
 from backend.app.agents.writer_agent import WriterAgent
 from backend.app.agents.memory_agent import PlaylistMemoryAgent
 from backend.app.agents.critic_agent import CriticAgent
@@ -375,6 +376,14 @@ def test_orchestrator_creates_notice_note_when_agent_flags_non_educational(tmp_p
             assert (tmp_path / note.file_name).exists()
             assert "comedy standup routine" in note.markdown_content
             assert "A comedy show performance" in note.markdown_content
+
+
+def test_gemini_service_detects_transient_error():
+    assert GeminiService.is_transient_error("503 UNAVAILABLE: This model is currently experiencing high demand.") is True
+    assert GeminiService.is_transient_error("429 RESOURCE_EXHAUSTED: Rate limit exceeded") is True
+    assert GeminiService.is_transient_error("504 GATEWAY_TIMEOUT: Request timed out") is True
+    assert GeminiService.is_transient_error("400 INVALID_ARGUMENT: Schema mismatch") is False
+
 
 
 

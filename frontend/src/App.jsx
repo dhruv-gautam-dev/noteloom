@@ -4,6 +4,8 @@ import Header from './components/Header';
 import AgentStepper from './components/AgentStepper';
 import VaultSidebar from './components/VaultSidebar';
 import NoteViewer from './components/NoteViewer';
+import AuthModal from './components/AuthModal';
+import { supabase, signOut, getSession } from './utils/supabaseClient';
 
 export default function App() {
   const [url, setUrl] = useState('');
@@ -15,6 +17,10 @@ export default function App() {
 
   // Ingestion Drawer state (collapsed by default if notes already exist)
   const [showIngest, setShowIngest] = useState(false);
+
+  // User Authentication State
+  const [user, setUser] = useState(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   // Vault Notes State
   const [notes, setNotes] = useState([]);
@@ -74,6 +80,19 @@ export default function App() {
   useEffect(() => {
     refreshNotes();
     checkLatestJob();
+
+    // Listen to Supabase Auth State Changes
+    if (supabase) {
+      getSession().then((session) => {
+        setUser(session?.user || null);
+      });
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user || null);
+      });
+
+      return () => subscription?.unsubscribe();
+    }
   }, []);
 
   const loadNoteContent = async (filename) => {
@@ -214,6 +233,9 @@ export default function App() {
         onToggleIngest={() => setShowIngest((prev) => !prev)}
         isProcessing={isProcessing}
         theme={theme}
+        user={user}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        onSignOut={signOut}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 lg:p-6 flex flex-col gap-4">
@@ -361,6 +383,13 @@ export default function App() {
           </div>
         </section>
       </main>
+
+      {/* Supabase Cloud Authentication Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        theme={theme}
+      />
     </div>
   );
 }

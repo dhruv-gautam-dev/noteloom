@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List, Optional
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, HttpUrl
@@ -19,6 +19,7 @@ from backend.app.config import config
 from backend.app.schemas import JobStatus, JobEvent, AgentStep
 from backend.app.jobs import JobManager, JobState
 from backend.app.orchestrator import PipelineOrchestrator
+from backend.app.auth import get_current_user_optional, CurrentUser
 
 app = FastAPI(
     title="NoteLoom V2 API",
@@ -98,10 +99,12 @@ async def run_pipeline_worker(job_id: str, url: str):
 def health_check():
     """Health check endpoint providing environment & configuration details."""
     has_gemini = bool(config.gemini_api_key)
+    has_supabase = bool(config.supabase_url and config.supabase_anon_key)
     return {
         "status": "online",
         "version": "2.0.0",
         "gemini_configured": has_gemini,
+        "supabase_configured": has_supabase,
         "models": {
             "extractor": config.extractor_model,
             "interviewer": config.interviewer_model,
@@ -109,6 +112,21 @@ def health_check():
             "critic": config.critic_model,
         },
         "vault_dir": str(config.vault_dir),
+    }
+
+
+@app.get("/api/auth/me")
+def get_auth_me(user: Optional[CurrentUser] = Depends(get_current_user_optional)):
+    """Returns the authenticated user details, or guest status."""
+    if not user:
+        return {"authenticated": False, "user": None}
+    return {
+        "authenticated": True,
+        "user": {
+            "id": user.user_id,
+            "email": user.email,
+            "role": user.role,
+        },
     }
 
 

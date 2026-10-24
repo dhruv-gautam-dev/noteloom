@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Download, Plus, ChevronUp, Leaf } from 'lucide-react';
+import { BookOpen, Download, Plus, ChevronUp, Leaf, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 
 export default function Header({
   onDownloadVault,
@@ -7,6 +7,9 @@ export default function Header({
   onToggleIngest,
   isProcessing,
   theme = 'zen',
+  user = null,
+  onOpenAuth,
+  onSignOut,
 }) {
   const [backendOnline, setBackendOnline] = useState(false);
 
@@ -129,8 +132,41 @@ export default function Header({
             title="Download Obsidian Vault as .zip"
           >
             <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="hidden sm:inline">Export Vault</span>
+            <span className="hidden sm:inline">Export</span>
           </button>
+
+          {/* User Authentication Pill / Sign In Button */}
+          {user ? (
+            <div className="flex items-center gap-2 pl-2 border-l border-black/10 dark:border-white/10">
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 text-xs"
+                title={`Signed in as ${user.email}`}
+              >
+                <div className="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center">
+                  {(user.user_metadata?.full_name || user.email || 'U')[0].toUpperCase()}
+                </div>
+                <span className="hidden sm:inline text-xs font-semibold max-w-[100px] truncate">
+                  {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                </span>
+              </div>
+              <button
+                onClick={onSignOut}
+                className={`p-1.5 rounded-xl border text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition ${headerTheme.button}`}
+                title="Sign Out"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onOpenAuth}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition shadow-xs ${headerTheme.activeButton}`}
+              title="Sign in to save your notes to personal cloud vault"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Sign In</span>
+            </button>
+          )}
         </div>
       </div>
     </header>
