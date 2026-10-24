@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, Sparkles, Youtube, Layers, BookOpen, AlertCircle, ArrowRight, RotateCcw, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import Header from './components/Header';
 import AgentStepper from './components/AgentStepper';
@@ -6,6 +6,14 @@ import VaultSidebar from './components/VaultSidebar';
 import NoteViewer from './components/NoteViewer';
 import AuthModal from './components/AuthModal';
 import { supabase, signOut, getSession } from './utils/supabaseClient';
+import {
+  getVaultNotes,
+  getVaultNoteContent,
+  saveGeneratedNote,
+  adoptGuestNotesToUser,
+  clearActiveVault,
+  exportNotesAsZip,
+} from './utils/vaultManager';
 
 export default function App() {
   const [url, setUrl] = useState('');
@@ -15,11 +23,16 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
 
-  // Ingestion Drawer state (collapsed by default if notes already exist)
+  // Ingestion Drawer state (ALWAYS hidden by default on first visit, on sign-in, and on sign-out)
   const [showIngest, setShowIngest] = useState(false);
 
   // User Authentication State
   const [user, setUser] = useState(null);
+  const userRef = useRef(null);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   // Vault Notes State
@@ -31,22 +44,40 @@ export default function App() {
   const [theme, setTheme] = useState('zen'); // 'zen' | 'purple' | 'dark'
   const [isZenMode, setIsZenMode] = useState(false);
 
-  // Fetch existing notes
-  const refreshNotes = async () => {
+  // Fetch existing notes (from Supabase Cloud if user is signed in, or Guest storage)
+  const refreshNotes = async (activeUser = userRef.current) => {
     try {
-      const res = await fetch('/api/notes');
-      if (res.ok) {
-        const data = await res.json();
-        setNotes(data);
-        if (!selectedFilename && data.length > 0) {
-          loadNoteContent(data[0].filename);
-        } else if (data.length === 0) {
-          setShowIngest(true); // Open drawer if vault is empty
+      const loadedNotes = await getVaultNotes(activeUser);
+      setNotes(loadedNotes);
+      if (loadedNotes.length > 0) {
+        if (!selectedFilename || !loadedNotes.some((n) => n.filename === selectedFilename)) {
+          loadNoteContent(loadedNotes[0].filename, activeUser, loadedNotes);
         }
+      } else {
+        setSelectedFilename(null);
+        setSelectedContent(null);
+        // Kept hidden: Never force showIngest open on empty vault
       }
     } catch (err) {
       console.error('Failed to fetch notes:', err);
     }
+  };
+
+  // Dedicated clean Sign Out handler
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (err) {
+      console.error('Sign out error:', err);
+    }
+    sessionStorage.removeItem('noteloom_guest_notes');
+    setUser(null);
+    userRef.current = null;
+    setNotes([]);
+    setSelectedFilename(null);
+    setSelectedContent(null);
+    setShowIngest(false); // Ingest model must NOT be visible on sign out
+    refreshNotes(null);
   };
 
   // Restore latest job state on page reload
@@ -65,7 +96,7 @@ export default function App() {
           }
           if (job.status === 'processing') {
             setIsProcessing(true);
-            setShowIngest(true);
+            setShowIngest(true); // Only show if job is currently actively processing
             startEventStream(job.job_id);
           } else if (job.status === 'failed') {
             setErrorMessage(job.error_message || 'Pipeline execution failed.');
@@ -78,30 +109,68 @@ export default function App() {
   };
 
   useEffect(() => {
-    refreshNotes();
+    // Hidden by default on first visit
+    setShowIngest(false);
     checkLatestJob();
 
     // Listen to Supabase Auth State Changes
     if (supabase) {
-      getSession().then((session) => {
-        setUser(session?.user || null);
+      getSession().then(async (session) => {
+        const currentUser = session?.user || null;
+        setUser(currentUser);
+        userRef.current = currentUser;
+        setShowIngest(false); // Hidden when session loads
+        if (currentUser) {
+          await adoptGuestNotesToUser(currentUser);
+          refreshNotes(currentUser);
+        } else {
+          refreshNotes(null);
+        }
       });
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setUser(session?.user || null);
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        const currentUser = session?.user || null;
+        setUser(currentUser);
+        userRef.current = currentUser;
+
+        // Hidden on sign out
+        if (event === 'SIGNED_OUT' || !currentUser) {
+          sessionStorage.removeItem('noteloom_guest_notes');
+          setUser(null);
+          userRef.current = null;
+          setNotes([]);
+          setSelectedFilename(null);
+          setSelectedContent(null);
+          setShowIngest(false); // Ingest model must NOT be visible on sign out
+          refreshNotes(null);
+          return;
+        }
+
+        // Hidden on sign in
+        setShowIngest(false); // Ingest model must NOT be visible on sign in
+
+        if (currentUser) {
+          const count = await adoptGuestNotesToUser(currentUser);
+          if (count > 0) {
+            console.log(`Adopted ${count} guest notes to user cloud vault.`);
+          }
+          refreshNotes(currentUser);
+        }
       });
 
       return () => subscription?.unsubscribe();
+    } else {
+      setShowIngest(false);
+      refreshNotes(null);
     }
   }, []);
 
-  const loadNoteContent = async (filename) => {
+  const loadNoteContent = async (filename, activeUser = userRef.current, currentNotes = notes) => {
     setSelectedFilename(filename);
     try {
-      const res = await fetch(`/api/notes/${encodeURIComponent(filename)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setSelectedContent(data.content);
+      const content = await getVaultNoteContent(filename, activeUser, currentNotes);
+      if (content) {
+        setSelectedContent(content);
       }
     } catch (err) {
       console.error('Failed to load note content:', err);
@@ -118,15 +187,15 @@ export default function App() {
     setUrl('');
   };
 
-  // Clear all vault notes for a fresh start
+  // Clear vault notes for a fresh start (Cloud or Guest)
   const handleClearVault = async () => {
-    if (!window.confirm("Are you sure you want to delete all notes in the vault for a fresh start?")) return;
+    const target = user ? 'personal cloud vault' : 'guest session notes';
+    if (!window.confirm(`Are you sure you want to delete all notes in your ${target}?`)) return;
     try {
-      await fetch('/api/vault/clear', { method: 'POST' });
+      await clearActiveVault(user);
       setNotes([]);
       setSelectedFilename(null);
       setSelectedContent(null);
-      setShowIngest(true);
       handleResetState();
     } catch (err) {
       console.error('Failed to clear vault:', err);
@@ -139,7 +208,7 @@ export default function App() {
     if (!url.trim()) return;
 
     setIsProcessing(true);
-    setShowIngest(true);
+    setShowIngest(true); // Open drawer to show real-time agent stepper
     setErrorMessage(null);
     setEvents([]);
     setCurrentStep('ingestion');
@@ -181,7 +250,25 @@ export default function App() {
         if (jobEvent.step === 'done') {
           setIsProcessing(false);
           eventSource.close();
-          refreshNotes();
+          const activeUser = userRef.current;
+          // Save generated notes into active vault (Supabase cloud if signed in, or guest storage)
+          fetch(`/api/jobs/${activeJobId}`)
+            .then((r) => r.json())
+            .then(async (jobData) => {
+              const generatedNotes = jobData?.notes || jobData?.rendered_notes || [];
+              if (generatedNotes.length > 0) {
+                for (const rn of generatedNotes) {
+                  await saveGeneratedNote(rn, activeUser);
+                }
+              }
+              await refreshNotes(activeUser);
+              // AUTOMATICALLY HIDE when notes are created!
+              setShowIngest(false);
+            })
+            .catch(() => {
+              refreshNotes(activeUser);
+              setShowIngest(false);
+            });
         } else if (jobEvent.status === 'failed') {
           setIsProcessing(false);
           setErrorMessage(jobEvent.message);
@@ -195,12 +282,17 @@ export default function App() {
     eventSource.onerror = () => {
       eventSource.close();
       setIsProcessing(false);
-      refreshNotes();
+      refreshNotes(userRef.current);
     };
   };
 
-  const handleDownloadVault = () => {
-    window.location.href = '/api/download/vault';
+  const handleDownloadVault = async () => {
+    try {
+      await exportNotesAsZip(notes, user);
+    } catch (err) {
+      console.warn('Browser zip export fallback to server:', err);
+      window.location.href = '/api/download/vault';
+    }
   };
 
   // App container theme styles
@@ -235,7 +327,7 @@ export default function App() {
         theme={theme}
         user={user}
         onOpenAuth={() => setAuthModalOpen(true)}
-        onSignOut={signOut}
+        onSignOut={handleSignOut}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 lg:p-6 flex flex-col gap-4">
@@ -363,10 +455,12 @@ export default function App() {
             <VaultSidebar
               notes={notes}
               selectedFilename={selectedFilename}
-              onSelectNote={loadNoteContent}
-              onRefresh={refreshNotes}
+              onSelectNote={(fname) => loadNoteContent(fname, userRef.current, notes)}
+              onRefresh={() => refreshNotes(userRef.current)}
               onClearVault={handleClearVault}
+              onOpenIngest={() => setShowIngest(true)}
               theme={theme}
+              user={user}
             />
           )}
 
@@ -379,6 +473,9 @@ export default function App() {
               onToggleZenMode={() => setIsZenMode((prev) => !prev)}
               theme={theme}
               onSelectTheme={setTheme}
+              user={user}
+              onOpenAuth={() => setAuthModalOpen(true)}
+              onOpenIngest={() => setShowIngest(true)}
             />
           </div>
         </section>

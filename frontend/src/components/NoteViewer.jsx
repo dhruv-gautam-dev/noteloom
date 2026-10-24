@@ -27,7 +27,8 @@ import {
   Sparkle,
   Moon,
   CheckCircle2,
-  Layers
+  Layers,
+  Cloud
 } from 'lucide-react';
 import FlashcardModal from './FlashcardModal';
 import CodeBlock from './CodeBlock';
@@ -40,6 +41,9 @@ export default function NoteViewer({
   onToggleZenMode,
   theme = 'zen',
   onSelectTheme,
+  user = null,
+  onOpenAuth,
+  onOpenIngest,
 }) {
   const [copied, setCopied] = useState(false);
   const [flashcardsOpen, setFlashcardsOpen] = useState(false);
@@ -221,8 +225,17 @@ export default function NoteViewer({
         </div>
         <h3 className={`text-lg font-bold mb-1 ${themeStyles.textHeading}`}>No Study Note Selected</h3>
         <p className={`text-sm max-w-md ${themeStyles.textMuted}`}>
-          Choose a lecture from the sidebar on the left to start revising concise, interview-ready concepts and mental models.
+          Choose a lecture from the sidebar on the left or ingest a new YouTube lecture to generate concise study notes.
         </p>
+        {onOpenIngest && (
+          <button
+            onClick={onOpenIngest}
+            className="mt-5 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-xs flex items-center gap-2"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Ingest Technical Lecture</span>
+          </button>
+        )}
       </div>
     );
   }
@@ -365,6 +378,30 @@ export default function NoteViewer({
       {/* Main Reading Canvas */}
       <div className={`flex-1 overflow-y-auto px-6 sm:px-12 lg:px-16 py-8 ${fontClass}`}>
         <div className="max-w-3xl mx-auto space-y-10">
+          {/* Guest Mode Notice & Cloud Save Prompt */}
+          {!user && (
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between flex-wrap gap-3 text-xs animate-in fade-in duration-200">
+              <div className="flex items-center gap-2.5 text-amber-900 dark:text-amber-200">
+                <Cloud className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <div>
+                  <span className="font-bold">Guest Session: </span>
+                  <span className="text-slate-600 dark:text-slate-300">
+                    Sign in to permanently save your study notes to your personal cloud vault.
+                  </span>
+                </div>
+              </div>
+              {onOpenAuth && (
+                <button
+                  onClick={onOpenAuth}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition shadow-xs whitespace-nowrap ml-auto"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Save to Cloud</span>
+                </button>
+              )}
+            </div>
+          )}
+
           {parsed.isTeacherNote ? (
             <>
               {/* Note Header & Goal Banner */}

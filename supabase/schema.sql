@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS public.notes (
 CREATE INDEX IF NOT EXISTS idx_notes_user_id ON public.notes(user_id);
 CREATE INDEX IF NOT EXISTS idx_notes_video_id ON public.notes(video_id);
 CREATE INDEX IF NOT EXISTS idx_notes_created_at ON public.notes(created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notes_user_video ON public.notes(user_id, video_id);
 
 -- Row Level Security (RLS) for Notes:
 -- Users can only see, create, edit, or delete their own notes

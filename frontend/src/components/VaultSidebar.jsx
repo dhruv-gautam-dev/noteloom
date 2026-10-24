@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Search, RefreshCw, Trash2, X, Bookmark } from 'lucide-react';
+import { FileText, Search, RefreshCw, Trash2, X, Bookmark, Cloud } from 'lucide-react';
 
 export default function VaultSidebar({
   notes = [],
@@ -7,7 +7,9 @@ export default function VaultSidebar({
   onSelectNote,
   onRefresh,
   onClearVault,
+  onOpenIngest,
   theme = 'zen',
+  user = null,
 }) {
   const [search, setSearch] = useState('');
 
@@ -74,9 +76,13 @@ export default function VaultSidebar({
       {/* Header */}
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
-          <Bookmark className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          {user ? (
+            <Cloud className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          ) : (
+            <Bookmark className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          )}
           <h3 className={`text-xs font-bold uppercase tracking-wider ${sidebarTheme.textHeading}`}>
-            Obsidian Vault ({notes.length})
+            {user ? 'Cloud Vault' : 'Guest Vault'} ({notes.length})
           </h3>
         </div>
 
@@ -85,7 +91,7 @@ export default function VaultSidebar({
             <button
               onClick={onClearVault}
               className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 transition"
-              title="Delete all notes in vault"
+              title={user ? 'Delete all notes in personal cloud vault' : 'Clear guest session notes'}
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -123,8 +129,22 @@ export default function VaultSidebar({
       {/* Notes List */}
       <div className="flex-1 overflow-y-auto space-y-1 pr-1">
         {filteredNotes.length === 0 ? (
-          <div className="text-center py-10 px-4 text-xs text-slate-400 italic">
-            {notes.length === 0 ? 'No notes in vault yet. Ingest a YouTube lecture to begin!' : 'No matching notes found.'}
+          <div className="text-center py-10 px-4 text-xs text-slate-400 italic space-y-2.5">
+            <div>
+              {notes.length === 0
+                ? user
+                  ? 'No notes in your Cloud Vault yet. Ingest a YouTube lecture to begin!'
+                  : 'No guest notes yet. Ingest a lecture or sign in to load your Cloud Vault!'
+                : 'No matching notes found.'}
+            </div>
+            {notes.length === 0 && onOpenIngest && (
+              <button
+                onClick={onOpenIngest}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 font-semibold not-italic transition text-[11px]"
+              >
+                + Ingest Lecture
+              </button>
+            )}
           </div>
         ) : (
           filteredNotes.map((note) => {
