@@ -335,7 +335,7 @@ export default function App() {
         )}
 
         {/* Study Sanctuary: Vault Sidebar + NoteViewer */}
-        <section className="flex-1 flex flex-col md:flex-row gap-5 min-h-[620px]">
+        <section className="flex-1 flex flex-col md:flex-row gap-5 items-start min-h-[620px]">
           {/* Collapsible Sidebar */}
           {!isZenMode && (
             <VaultSidebar
@@ -349,14 +349,16 @@ export default function App() {
           )}
 
           {/* Master Note Viewer */}
-          <NoteViewer
-            filename={selectedFilename}
-            content={selectedContent}
-            isZenMode={isZenMode}
-            onToggleZenMode={() => setIsZenMode((prev) => !prev)}
-            theme={theme}
-            onSelectTheme={setTheme}
-          />
+          <div className="flex-1 w-full min-w-0">
+            <NoteViewer
+              filename={selectedFilename}
+              content={selectedContent}
+              isZenMode={isZenMode}
+              onToggleZenMode={() => setIsZenMode((prev) => !prev)}
+              theme={theme}
+              onSelectTheme={setTheme}
+            />
+          </div>
         </section>
       </main>
     </div>

@@ -68,7 +68,9 @@ export default function VaultSidebar({
   };
 
   return (
-    <aside className={`w-full md:w-72 rounded-3xl border p-4 flex flex-col h-full shadow-xs transition-colors duration-200 ${sidebarTheme.bg}`}>
+    <aside
+      className={`w-full md:w-72 md:flex-shrink-0 md:sticky md:top-20 md:self-start md:h-[calc(100vh-6rem)] md:max-h-[calc(100vh-6rem)] rounded-3xl border p-4 flex flex-col shadow-xs transition-colors duration-200 z-30 ${sidebarTheme.bg}`}
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
