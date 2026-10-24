@@ -108,6 +108,96 @@ source_url: "{video.url}"
         )
 
     @classmethod
+    def render_non_educational_note(
+        cls,
+        video: VideoItem,
+        reason: str,
+        video_summary: str = None,
+        category: str = None,
+        vault_path: Path = None,
+    ) -> RenderedNote:
+        """
+        Renders a clear notice note in the Obsidian vault explaining
+        that this video is non-educational (e.g. music, comedy, trailer, entertainment)
+        and detailing what the video actually is and what NoteLoom is designed for.
+        """
+        vault = vault_path or config.vault_dir
+        vault.mkdir(parents=True, exist_ok=True)
+
+        slug = cls.slugify(video.title)
+        filename = f"{video.sequence_index:02d}_{slug}.md"
+        filepath = vault / filename
+
+        created_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        detected_category = category or video.category or "Entertainment / Music"
+
+        summary_text = video_summary or (
+            f"This video ('{video.title}' by {video.channel or 'Unknown'}) is identified as {detected_category}. "
+            f"It features entertainment content, music/song lyrics, or non-technical presentation rather than an educational lecture or coding workshop."
+        )
+
+        content = f"""---
+video_id: "{video.video_id}"
+video_title: "{video.title}"
+channel: "{video.channel or 'Unknown'}"
+day_number: {video.sequence_index}
+status: "non_educational"
+tags:
+  - non-educational
+  - notice
+created_at: {created_date}
+source_url: "{video.url}"
+---
+
+# Day {video.sequence_index:02d}: {video.title} - Non-Educational Content Notice
+
+> [!INFO] Non-Educational Content Notice
+> NoteLoom V2 could not generate technical study notes, concept breakdowns, or interview prep questions for this video.
+>
+> **Reason:** NoteLoom V2 is specifically designed to transform **educational and practical engineering videos** (Computer Science, System Design, DSA, AI/ML, Cloud/DevOps, Programming) into structured interview study notes. Videos containing music, songs, entertainment, comedy, or movie clips are recognized and preserved here for curriculum completeness, but technical concepts are not fabricated for them.
+
+---
+
+## 🎬 About This Video
+- **Video Title:** {video.title}
+- **Channel / Creator:** {video.channel or 'Unknown'}
+- **Category:** {detected_category}
+- **Status:** Non-educational ({reason})
+- **Details:** {summary_text}
+
+---
+
+## 💡 What Can NoteLoom Process?
+NoteLoom is built for developers, engineers, and students preparing for technical interviews and mastering practical concepts. Please provide videos covering:
+- **Data Structures & Algorithms:** Arrays, Trees, Graphs, Dynamic Programming, LeetCode walkthroughs.
+- **System Design & Architecture:** Microservices, Caching (Redis), Load Balancing, High Availability, Database Sharding.
+- **AI & Machine Learning:** Transformer architectures, LLM internals, Prompt Engineering, PyTorch, RAG pipelines.
+- **Software Engineering & DevOps:** Docker, Kubernetes, Linux CLI, CI/CD, Git, REST & GraphQL APIs.
+- **Programming Languages:** Python, JavaScript, TypeScript, Go, Rust, Java, C++.
+
+---
+
+*Tip: Paste a link to any coding tutorial, tech conference talk, or engineering walkthrough to generate complete study notes!*
+"""
+        filepath.write_text(content, encoding="utf-8")
+
+        try:
+            rel_path = str(filepath.relative_to(config.root_dir))
+        except ValueError:
+            rel_path = str(filepath)
+
+        return RenderedNote(
+            video_id=video.video_id,
+            title=video.title,
+            day_number=video.sequence_index,
+            file_name=filename,
+            relative_path=rel_path,
+            markdown_content=content,
+            is_fallback=False,
+            is_non_educational=True,
+        )
+
+    @classmethod
     def render_interview_note(
         cls,
         video: VideoItem,
@@ -150,7 +240,7 @@ source_url: "{video.url}"
   > "{c.evidence_snippet}"
 """
             )
-        concepts_block = "\n".join(concepts_md)
+        concepts_block = "\n".join(concepts_md) if concepts_md else "*No technical concepts recorded for this video.*"
 
         # Build Trade-off Matrix
         tradeoff_rows = []
@@ -314,7 +404,7 @@ source_url: "{video.url}"
 {q_block}
 """
             )
-        concepts_block = "\n".join(concepts_md)
+        concepts_block = "\n".join(concepts_md) if concepts_md else "*No technical concepts recorded for this video.*"
 
         # Build Code Block
         if note.code_snippets and note.code_snippets.strip():

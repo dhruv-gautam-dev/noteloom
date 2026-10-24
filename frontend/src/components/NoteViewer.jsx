@@ -237,9 +237,9 @@ export default function NoteViewer({
           </span>
           <div className="truncate">
             <div className={`text-xs font-bold truncate ${themeStyles.textHeading}`}>
-              {parsed.meta.video_title || filename}
+              {parsed.meta?.video_title || filename}
             </div>
-            {parsed.meta.channel && (
+            {parsed.meta?.channel && (
               <div className={`text-[11px] truncate ${themeStyles.textMuted}`}>
                 {parsed.meta.channel} {parsed.meta.day_number ? `• Day ${parsed.meta.day_number}` : ''}
               </div>
@@ -746,6 +746,11 @@ export default function NoteViewer({
                   ),
                   th: ({ node, ...props }) => <th className="p-3 bg-black/5 dark:bg-white/5 font-semibold" {...props} />,
                   td: ({ node, ...props }) => <td className="p-3 border-t border-black/5 dark:border-white/5 align-top" {...props} />,
+                  blockquote: ({ node, children, ...props }) => (
+                    <div className="my-5 p-4 rounded-2xl border-l-4 border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/5 text-slate-800 dark:text-slate-200 text-sm space-y-1.5 shadow-xs" {...props}>
+                      {children}
+                    </div>
+                  ),
                   code: ({ node, inline, children, ...props }) => {
                     return inline ? (
                       <code className="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono text-xs text-emerald-700 dark:text-emerald-300" {...props}>

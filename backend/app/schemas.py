@@ -21,6 +21,7 @@ class VideoItem(BaseModel):
     sequence_index: int = 1  # 1-based order in playlist or 1 for single video
     description: Optional[str] = None
     thumbnail_url: Optional[str] = None
+    category: Optional[str] = None
 
 
 class PlaylistInfo(BaseModel):
@@ -97,24 +98,32 @@ class StudyNote(BaseModel):
     video_id: str
     video_title: str
     day_number: int = 1
-    topic: str = Field(description="Specific technical topic")
-    one_line_goal: str = Field(description="Action goal: 'After this video I should be able to ___'")
-    prerequisites: str = Field(description="Prerequisites or 'None'")
+    is_educational: bool = Field(
+        default=True,
+        description="True if the video is an educational, technical, or practical tutorial/lecture. False if entertainment, music, song lyrics, movie scene, vlog, or non-educational content."
+    )
+    rejection_reason: Optional[str] = Field(
+        default=None,
+        description="If is_educational is False, explain why this video cannot produce technical study notes."
+    )
+    topic: str = Field(default="", description="Specific technical topic, or 'Non-Educational Content' if rejected")
+    one_line_goal: str = Field(default="", description="Action goal: 'After this video I should be able to ___'")
+    prerequisites: str = Field(default="None", description="Prerequisites or 'None'")
     concepts: List[TeacherConcept] = Field(
-        description="4 to 8 important concepts max. Merge overlapping concepts. Skip filler and minor details.",
-        min_length=1,
-        max_length=10,
+        default_factory=list,
+        description="4 to 8 important concepts max. If is_educational is False, leave this list empty [].",
     )
     how_concepts_connect: str = Field(
+        default="",
         description="Explain relationships between concepts (what depends on what, why X exists because of problem Y) followed by a simple flow e.g. A → B → C"
     )
     code_snippets: Optional[str] = Field(
         default=None,
         description="A complete minimal working example, including the main loop, not just helper pieces. Numbers and examples in code must match the video exactly. Add a comment above each key line explaining WHY it is there. If no code was shown, leave as null."
     )
-    summary: str = Field(description="3-5 line summary of the whole video in plain words")
-    open_doubts: List[str] = Field(description="2-3 open doubts or topics worth looking up later")
-    practice_task: str = Field(description="One concrete practice task or mini project to apply this video")
+    summary: str = Field(default="", description="3-5 line summary of the whole video in plain words")
+    open_doubts: List[str] = Field(default_factory=list, description="2-3 open doubts or topics worth looking up later")
+    practice_task: str = Field(default="", description="One concrete practice task or mini project to apply this video")
 
 
 # ==========================================
@@ -208,6 +217,7 @@ class RenderedNote(BaseModel):
     relative_path: str
     markdown_content: str
     is_fallback: bool = False
+    is_non_educational: bool = False
 
 
 # ==========================================

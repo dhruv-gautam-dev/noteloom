@@ -297,3 +297,85 @@ def test_render_teacher_study_note_with_attribution_and_production_gotcha(sample
     assert "Flow: Heartbeat Timeout ➔ Candidate State ➔ Quorum Vote ➔ Active Leader" in md
     assert "- **Apply It (Practice Task):** Implement a 3-node simulated cluster" in md
 
+
+def test_orchestrator_creates_notice_note_for_music_video(tmp_path):
+    music_video = VideoItem(
+        video_id="4mauxBeB9bA",
+        title="Aashiq Banaya Aapne (Trending Version) 8K | Himesh Reshammiya,Shreya G",
+        url="https://www.youtube.com/watch?v=4mauxBeB9bA",
+        sequence_index=1,
+        channel="T-Series",
+        category="Music",
+    )
+    with patch.object(config, "vault_dir", tmp_path), patch.object(config, "data_dir", tmp_path):
+        with patch("backend.app.services.youtube_service.YouTubeService.fetch_metadata") as mock_meta:
+            mock_meta.return_value = IngestionResult(
+                is_playlist=False,
+                videos=[music_video],
+            )
+            notes = asyncio.run(
+                PipelineOrchestrator.process_url(
+                    job_id="test_music_job",
+                    url=music_video.url,
+                )
+            )
+            assert len(notes) == 1
+            note = notes[0]
+            assert note.is_non_educational is True
+            assert (tmp_path / note.file_name).exists()
+            assert "Aashiq Banaya Aapne" in note.markdown_content
+            assert "Non-Educational Content Notice" in note.markdown_content
+            assert "T-Series" in note.markdown_content
+            assert "status: \"non_educational\"" in note.markdown_content
+            assert "What Can NoteLoom Process?" in note.markdown_content
+
+
+def test_orchestrator_creates_notice_note_when_agent_flags_non_educational(tmp_path):
+    video = VideoItem(
+        video_id="standup123",
+        title="Standup Comedy Special Live in London",
+        url="https://www.youtube.com/watch?v=standup123",
+        sequence_index=1,
+        channel="Comedy Hub",
+        category="General",
+    )
+    mock_study_note = StudyNote(
+        video_id="standup123",
+        video_title="Standup Comedy Special Live in London",
+        is_educational=False,
+        rejection_reason="This video contains a comedy standup routine with jokes and crowd banter, not educational material.",
+        summary="A comedy show performance featuring jokes and audience interaction.",
+        concepts=[],
+    )
+    mock_transcript = TranscriptData(
+        video_id="standup123",
+        video_title="Standup Comedy Special Live in London",
+        available=True,
+        raw_text="hello london how are you doing tonight",
+        cleaned_text="hello london how are you doing tonight",
+    )
+
+    with patch.object(config, "vault_dir", tmp_path), patch.object(config, "data_dir", tmp_path):
+        with patch("backend.app.services.youtube_service.YouTubeService.fetch_metadata") as mock_meta, \
+             patch("backend.app.agents.transcript_agent.TranscriptAgent.execute") as mock_tr, \
+             patch("backend.app.agents.teacher_note_agent.TeacherNoteAgent.execute") as mock_teacher:
+            mock_meta.return_value = IngestionResult(is_playlist=False, videos=[video])
+            mock_tr.return_value = (mock_transcript, [])
+            mock_teacher.return_value = (mock_study_note, [])
+
+            notes = asyncio.run(
+                PipelineOrchestrator.process_url(
+                    job_id="test_comedy_job",
+                    url=video.url,
+                )
+            )
+            assert len(notes) == 1
+            note = notes[0]
+            assert note.is_non_educational is True
+            assert (tmp_path / note.file_name).exists()
+            assert "comedy standup routine" in note.markdown_content
+            assert "A comedy show performance" in note.markdown_content
+
+
+
+

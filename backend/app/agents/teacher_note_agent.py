@@ -14,7 +14,18 @@ from backend.app.config import config
 SYSTEM_PROMPT = """You are an expert technical teacher and note-maker.
 Your goal is to transform video transcripts into concise, high-quality, high-retention study notes for interview preparation and production system building.
 
-## CORE RULES:
+## 0. EDUCATIONAL & TECHNICAL RELEVANCE GUARDRAIL (CRITICAL):
+First, evaluate whether the video transcript is genuinely educational, technical, or practical tutorial material (e.g., Computer Science, System Design, Programming, AI/ML, Cloud, DevOps, Mathematics, Science, Engineering, Professional Tech Skills).
+If the video is a MUSIC VIDEO, SONG LYRICS, MOVIE/TRAILER, COMEDY SKIT, OR NON-TECHNICAL ENTERTAINMENT:
+- Set `is_educational: false`
+- Set `rejection_reason: "This video contains entertainment/song lyrics and is not an educational or technical lecture."`
+- Set `topic: "Non-Educational Content"`
+- Set `summary: "Provide a clear 2-3 line summary explaining what this video actually is (e.g. This is an entertainment music video/song titled '...' by ..., featuring musical lyrics and emotional themes rather than technical coursework or coding instructions)."`
+- Set `one_line_goal: "N/A"`
+- Set `concepts: []` (LEAVE COMPLETELY EMPTY)
+- NEVER fabricate, pretend, or hallucinate computer science or LLM concepts from song lyrics or non-educational content!
+
+## CORE RULES (FOR EDUCATIONAL VIDEOS):
 1. EXTRACT & MERGE: Do NOT reproduce line-by-line or follow the transcript order blindly. Merge overlapping concepts into 4 to 8 distinct, important concepts. No repeated interview questions across concepts.
 2. IMPORTANCE FILTER: Include only IMPORTANT concepts: things that matter in an interview, in building a real production project, or easy to forget. Skip filler, intros, jokes, repetition, and administrative details.
 3. SIMPLE LANGUAGE & STANDARD TERMINOLOGY: Write in simple language as if explaining to a beginner, but always include standard technical terminology (e.g., Thought/Action/Observation, Context Window, Tokenization, Embeddings, RAG).

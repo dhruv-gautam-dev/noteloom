@@ -19,6 +19,7 @@ from backend.app.agents.transcript_agent import TranscriptAgent
 from backend.app.agents.teacher_note_agent import TeacherNoteAgent
 from backend.app.agents.memory_agent import PlaylistMemoryAgent
 from backend.app.services.vault_service import VaultService
+from backend.app.services.youtube_service import YouTubeService
 
 
 class PipelineOrchestrator:
@@ -54,6 +55,37 @@ class PipelineOrchestrator:
         # Stage 2 to 7: Per-Video Multi-Agent Execution Loop
         # ----------------------------------------------------
         for video in ingestion_result.videos:
+            # Step 1.5: Fast Educational Relevance Check (Heuristic)
+            is_non_ed, non_ed_reason = YouTubeService.is_likely_non_educational(video)
+            if is_non_ed:
+                notice_note = await asyncio.to_thread(
+                    VaultService.render_non_educational_note,
+                    video=video,
+                    reason=non_ed_reason,
+                    category=video.category,
+                )
+                rendered_notes.append(notice_note)
+
+                dispatch(
+                    JobEvent(
+                        job_id=job_id,
+                        step=AgentStep.SYNTHESIS,
+                        agent_name="Content Guardrail",
+                        status="completed",
+                        video_id=video.video_id,
+                        video_title=video.title,
+                        video_index=video.sequence_index,
+                        total_videos=total_videos,
+                        message=f"Created non-educational notice note: '{notice_note.file_name}' ({non_ed_reason}).",
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                    )
+                )
+
+                if total_videos > 1:
+                    await asyncio.to_thread(PlaylistMemoryAgent.render_index_markdown, rendered_notes, playlist_title)
+                await asyncio.sleep(0.01)
+                continue
+
             # Step 2: Transcript & Cleaner Agent
             transcript, tr_events = await asyncio.to_thread(
                 TranscriptAgent.execute, job_id=job_id, video=video, total_videos=total_videos
@@ -103,6 +135,38 @@ class PipelineOrchestrator:
             for ev in teacher_events:
                 dispatch(ev)
             await asyncio.sleep(0.01)
+
+            # Check LLM Educational Relevance Guardrail
+            if not study_note.is_educational:
+                rejection = study_note.rejection_reason or "Non-educational content"
+                notice_note = await asyncio.to_thread(
+                    VaultService.render_non_educational_note,
+                    video=video,
+                    reason=rejection,
+                    video_summary=study_note.summary,
+                    category=video.category,
+                )
+                rendered_notes.append(notice_note)
+
+                dispatch(
+                    JobEvent(
+                        job_id=job_id,
+                        step=AgentStep.SYNTHESIS,
+                        agent_name="Content Guardrail",
+                        status="completed",
+                        video_id=video.video_id,
+                        video_title=video.title,
+                        video_index=video.sequence_index,
+                        total_videos=total_videos,
+                        message=f"Created non-educational notice note: '{notice_note.file_name}' ({rejection}).",
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                    )
+                )
+
+                if total_videos > 1:
+                    await asyncio.to_thread(PlaylistMemoryAgent.render_index_markdown, rendered_notes, playlist_title)
+                await asyncio.sleep(0.01)
+                continue
 
             # Step 4: Render Study Note to Obsidian Vault
             rendered_note = await asyncio.to_thread(

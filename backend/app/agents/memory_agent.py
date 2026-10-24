@@ -151,7 +151,12 @@ class PlaylistMemoryAgent:
         ]
 
         for note in sorted(notes, key=lambda n: n.day_number):
-            status_badge = "⚠️ Transcript Missing" if note.is_fallback else "✅ Interview Ready"
+            if getattr(note, "is_non_educational", False):
+                status_badge = "ℹ️ Non-Educational"
+            elif note.is_fallback:
+                status_badge = "⚠️ Transcript Missing"
+            else:
+                status_badge = "✅ Interview Ready"
             note_stem = Path(note.file_name).stem
             lines.append(f"| **Day {note.day_number:02d}** | [[{note_stem}]] | {status_badge} |")
 

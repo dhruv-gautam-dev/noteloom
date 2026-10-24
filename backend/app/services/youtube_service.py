@@ -74,6 +74,8 @@ class YouTubeService:
             if not info:
                 raise ValueError(f"Could not retrieve video/playlist info for: {url}")
 
+            category = (info.get("categories") or [None])[0]
+
             # Check if this is a playlist
             if "entries" in info and info["entries"]:
                 entries = list(info["entries"])
@@ -84,6 +86,7 @@ class YouTubeService:
                     v_id = entry.get("id") or entry.get("url")
                     title = entry.get("title") or f"Video {idx}"
                     v_url = f"https://www.youtube.com/watch?v={v_id}"
+                    v_cat = (entry.get("categories") or [category])[0]
                     videos.append(
                         VideoItem(
                             video_id=v_id,
@@ -94,6 +97,7 @@ class YouTubeService:
                             sequence_index=idx,
                             description=entry.get("description"),
                             thumbnail_url=entry.get("thumbnail"),
+                            category=v_cat,
                         )
                     )
                 return IngestionResult(
@@ -118,9 +122,42 @@ class YouTubeService:
                             sequence_index=1,
                             description=info.get("description"),
                             thumbnail_url=info.get("thumbnail"),
+                            category=category,
                         )
                     ],
                 )
+
+    @classmethod
+    def is_likely_non_educational(cls, video: VideoItem) -> Tuple[bool, Optional[str]]:
+        """
+        Fast heuristic check to detect music videos and entertainment content before calling LLMs.
+        Returns: (is_non_educational, reason)
+        """
+        cat = (video.category or "").lower()
+        if cat in ["music", "entertainment", "comedy"]:
+            return True, f"Categorized on YouTube as '{video.category}' (Entertainment/Music)"
+
+        # Check channel name against prominent music labels
+        ch = (video.channel or "").lower()
+        music_channels = [
+            "t-series", "zee music", "sony music", "yrf", "saregama",
+            "tips official", "speed records", "geet mp3", "white hill music",
+            "eros now", "shemaroo"
+        ]
+        if any(mc in ch for mc in music_channels):
+            return True, f"Uploaded by entertainment/music label '{video.channel}'"
+
+        # Check title for song / music keywords
+        t = video.title.lower()
+        music_patterns = [
+            "official music video", "official video song", "full video song",
+            "lyrical video", "audio song", "trending version", "remix song",
+            "bollywood song", "punjabi song", "hindi song"
+        ]
+        if any(mp in t for mp in music_patterns):
+            return True, f"Video title indicates music or entertainment: '{video.title}'"
+
+        return False, None
 
     @classmethod
     def fetch_transcript(cls, video_id: str, video_title: str = "") -> TranscriptData:

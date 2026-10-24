@@ -12,17 +12,6 @@ export function parseNoteContent(rawContent) {
   // Normalize line breaks
   const content = rawContent.replace(/\r/g, '');
 
-  // Check if this note adheres to the Teacher Note format
-  const hasConceptsSection = content.includes('## 💡 Important Concepts');
-  const hasFrontmatter = content.startsWith('---');
-
-  if (!hasConceptsSection) {
-    return {
-      isTeacherNote: false,
-      rawMarkdown: content,
-    };
-  }
-
   // 1. Extract Frontmatter metadata
   const meta = {};
   const frontmatterMatch = content.match(/^---\n([\s\S]+?)\n---/);
@@ -37,6 +26,17 @@ export function parseNoteContent(rawContent) {
         meta[key] = val;
       }
     });
+  }
+
+  // Check if this note adheres to the Teacher Note format
+  const hasConceptsSection = content.includes('## 💡 Important Concepts');
+
+  if (!hasConceptsSection) {
+    return {
+      isTeacherNote: false,
+      rawMarkdown: content,
+      meta,
+    };
   }
 
   // 2. Extract Title, Goal, and Prerequisites
