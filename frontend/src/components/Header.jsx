@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Download, Plus, ChevronUp, ChevronDown, CheckCircle2, AlertCircle } from 'lucide-react';
+import { BookOpen, Download, Plus, ChevronUp, Leaf } from 'lucide-react';
 
 export default function Header({
   onDownloadVault,
   showIngest,
   onToggleIngest,
   isProcessing,
-  theme = 'paper',
+  theme = 'zen',
 }) {
   const [backendOnline, setBackendOnline] = useState(false);
 
@@ -20,33 +20,55 @@ export default function Header({
   }, []);
 
   const headerTheme = {
+    zen: {
+      bg: 'bg-[#F3F6F1]/90 border-[#DDE5D9]',
+      text: 'text-[#142217]',
+      subtext: 'text-[#4F6454]',
+      button: 'bg-white hover:bg-[#EAF1E7] border-[#DDE5D9] text-[#142217]',
+      activeButton: 'bg-emerald-600 text-white border-emerald-600 shadow-sm',
+      badge: 'bg-[#EAF1E7] text-[#4F6454] border-[#D1E0CD]',
+      logoBg: 'bg-emerald-600 text-white',
+      chip: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    },
     paper: {
       bg: 'bg-[#FAF7F2]/90 border-[#E7E2DA]',
       text: 'text-[#1C1917]',
       subtext: 'text-[#78716C]',
       button: 'bg-white hover:bg-[#F2ECE1] border-[#E7E2DA] text-[#1C1917]',
-      badge: 'bg-[#EFEAE1] text-[#78716C]',
+      activeButton: 'bg-amber-600 text-white border-amber-600 shadow-sm',
+      badge: 'bg-[#F2ECE1] text-[#78716C] border-[#E2D8C7]',
+      logoBg: 'bg-amber-500 text-white',
+      chip: 'bg-amber-100 text-amber-800 border-amber-300',
+    },
+    purple: {
+      bg: 'bg-[#F8F6FC]/90 border-[#E9E3F5]',
+      text: 'text-[#1E162A]',
+      subtext: 'text-[#685B7A]',
+      button: 'bg-white hover:bg-[#F1ECFA] border-[#E9E3F5] text-[#1E162A]',
+      activeButton: 'bg-purple-600 text-white border-purple-600 shadow-sm',
+      badge: 'bg-[#F1ECFA] text-[#685B7A] border-[#DDD3EF]',
+      logoBg: 'bg-purple-600 text-white',
+      chip: 'bg-purple-100 text-purple-800 border-purple-300',
     },
     dark: {
       bg: 'bg-[#0B0F17]/90 border-[#1F293D]',
       text: 'text-white',
       subtext: 'text-slate-400',
       button: 'bg-[#161F30] hover:bg-[#202D45] border-[#22304A] text-slate-200',
-      badge: 'bg-slate-800 text-slate-300',
-    },
-    zen: {
-      bg: 'bg-[#F2F5F0]/90 border-[#E0E7DC]',
-      text: 'text-[#142217]',
-      subtext: 'text-[#55695A]',
-      button: 'bg-white hover:bg-[#E5ECE0] border-[#E0E7DC] text-[#142217]',
-      badge: 'bg-[#E0E7DC] text-[#55695A]',
+      activeButton: 'bg-emerald-600 text-white border-emerald-500 shadow-sm',
+      badge: 'bg-slate-800 text-slate-300 border-slate-700',
+      logoBg: 'bg-emerald-600 text-white',
+      chip: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
     },
   }[theme] || {
-    bg: 'bg-slate-900/80 border-slate-800',
-    text: 'text-white',
-    subtext: 'text-slate-400',
-    button: 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200',
-    badge: 'bg-slate-800 text-slate-300',
+    bg: 'bg-[#F3F6F1]/90 border-[#DDE5D9]',
+    text: 'text-[#142217]',
+    subtext: 'text-[#4F6454]',
+    button: 'bg-white hover:bg-[#EAF1E7] border-[#DDE5D9] text-[#142217]',
+    activeButton: 'bg-emerald-600 text-white border-emerald-600 shadow-sm',
+    badge: 'bg-[#EAF1E7] text-[#4F6454] border-[#D1E0CD]',
+    logoBg: 'bg-emerald-600 text-white',
+    chip: 'bg-emerald-100 text-emerald-800 border-emerald-300',
   };
 
   return (
@@ -54,13 +76,13 @@ export default function Header({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-15 py-2.5 flex items-center justify-between gap-4">
         {/* Brand */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center shadow-xs">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-xs ${headerTheme.logoBg}`}>
             <BookOpen className="w-5 h-5 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <span className={`font-bold text-base tracking-tight ${headerTheme.text}`}>NoteLoom</span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${headerTheme.chip}`}>
                 STUDY DESK
               </span>
             </div>
@@ -77,7 +99,7 @@ export default function Header({
             onClick={onToggleIngest}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
               showIngest
-                ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
+                ? headerTheme.activeButton
                 : headerTheme.button
             }`}
           >
@@ -106,7 +128,7 @@ export default function Header({
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition ${headerTheme.button}`}
             title="Download Obsidian Vault as .zip"
           >
-            <Download className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
             <span className="hidden sm:inline">Export Vault</span>
           </button>
         </div>

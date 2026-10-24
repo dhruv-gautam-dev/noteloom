@@ -43,16 +43,34 @@ class YouTubeService:
         Extracts video or playlist metadata using yt-dlp (lightweight extract_flat mode).
         Does NOT download any media files.
         """
-        video_id, playlist_id = cls.parse_url(url)
+        clean_url = url.strip()
+        parsed = urlparse(clean_url)
+        netloc = parsed.netloc.lower()
+
+        # Enforce YouTube-only validation
+        if not ("youtube.com" in netloc or "youtu.be" in netloc):
+            raise ValueError(
+                f"Unsupported URL: '{clean_url}'. NoteLoom V2 only supports YouTube video and playlist URLs (e.g., https://www.youtube.com/watch?v=... or https://youtu.be/...). External streaming or third-party web pages cannot be transcribed."
+            )
+
+        video_id, playlist_id = cls.parse_url(clean_url)
         ydl_opts = {
             "extract_flat": True,
             "skip_download": True,
             "quiet": True,
             "no_warnings": True,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android", "web"]
+                }
+            },
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+            }
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+            info = ydl.extract_info(clean_url, download=False)
             if not info:
                 raise ValueError(f"Could not retrieve video/playlist info for: {url}")
 

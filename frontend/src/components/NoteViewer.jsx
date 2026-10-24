@@ -22,9 +22,10 @@ import {
   Compass,
   Eye,
   EyeOff,
-  Sun,
-  Moon,
   Leaf,
+  Sun,
+  Sparkle,
+  Moon,
   CheckCircle2,
   Layers
 } from 'lucide-react';
@@ -36,13 +37,12 @@ export default function NoteViewer({
   content,
   isZenMode,
   onToggleZenMode,
-  theme = 'paper',
+  theme = 'zen',
   onSelectTheme,
 }) {
   const [copied, setCopied] = useState(false);
   const [flashcardsOpen, setFlashcardsOpen] = useState(false);
   const [fontStyle, setFontStyle] = useState('sans'); // 'sans' | 'serif'
-  const [fontSize, setFontSize] = useState('normal'); // 'compact' | 'normal' | 'relaxed'
   const [revealedAnswers, setRevealedAnswers] = useState({});
   const [allAnswersRevealed, setAllAnswersRevealed] = useState(false);
 
@@ -97,7 +97,6 @@ export default function NoteViewer({
       if (cards.length > 0) return cards;
     }
 
-    // Fallback regex matching
     const fallbackCards = [];
     const qPattern = /-\s*\*\*Q(?:\s*\(Extra\))?:\*\*\s*(.+?)\n\s*-\s*\*\*A:\*\*\s*(.+?)(?=\n\s*-|\n\n|$)/gs;
     let qMatch;
@@ -110,23 +109,76 @@ export default function NoteViewer({
     return fallbackCards;
   }, [content, parsed]);
 
-  // Theme-specific CSS classes
+  // Theme-specific CSS classes (Green Leaves, Warm Amber, Purple Light, Midnight Dark)
   const themeStyles = {
+    zen: {
+      canvas: 'bg-[#F3F6F1] text-[#142217]',
+      card: 'bg-white border-[#DDE5D9] shadow-sm',
+      cardHover: 'hover:border-emerald-300',
+      textMuted: 'text-[#4F6454]',
+      textHeading: 'text-[#142217]',
+      accentBg: 'bg-[#EAF1E7]',
+      accentBorder: 'border-[#D1E0CD]',
+      topBar: 'bg-[#F3F6F1]/90 border-[#DDE5D9]',
+      badge: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
+      analogyBg: 'bg-gradient-to-br from-[#F0F7F1] to-[#E8F3EA] border-emerald-300 text-emerald-950',
+      analogyBadge: 'bg-emerald-200/90 text-emerald-900 border-emerald-400',
+      goalBg: 'bg-[#EDF5EE] border-emerald-200 text-emerald-950',
+      flowBg: 'bg-[#EEF7F8] border-[#CCEAEB] text-[#115052]',
+      exampleBg: 'bg-[#EDF6F0] border-[#C8E4D1] text-[#13572E]',
+      dangerBg: 'bg-[#FDF2F0] border-[#F6CBC5] text-[#8C231F]',
+      codeBg: 'bg-[#141B17] text-[#E2E8F0]',
+      primaryColor: 'emerald',
+      activeRecallText: 'text-emerald-700 hover:text-emerald-800',
+      jumpPillActive: 'text-emerald-700',
+      highlightClass: 'bg-emerald-200/60 text-emerald-950 px-1 py-0.5 rounded',
+      buttonPrimary: 'bg-emerald-600 hover:bg-emerald-500 text-white',
+    },
     paper: {
       canvas: 'bg-[#FAF7F2] text-[#1C1917]',
       card: 'bg-white border-[#E7E2DA] shadow-sm',
-      cardHover: 'hover:border-[#D6CEC1]',
+      cardHover: 'hover:border-amber-300',
       textMuted: 'text-[#68635B]',
       textHeading: 'text-[#1C1917]',
       accentBg: 'bg-[#F2ECE1]',
       accentBorder: 'border-[#E2D8C7]',
       topBar: 'bg-[#FAF7F2]/90 border-[#E7E2DA]',
+      badge: 'bg-amber-100 text-amber-800 border border-amber-300',
       analogyBg: 'bg-gradient-to-br from-[#FEF8EC] to-[#FDF4E1] border-[#EED9A6] text-[#714B15]',
       analogyBadge: 'bg-[#F9E6BF] text-[#784E14] border-[#E7C687]',
+      goalBg: 'bg-[#FDF6E8] border-[#EED7A1] text-amber-950',
       flowBg: 'bg-[#F3F7FA] border-[#D1E1EC] text-[#184563]',
       exampleBg: 'bg-[#F1F8F5] border-[#CFE8DD] text-[#145337]',
       dangerBg: 'bg-[#FEF2F1] border-[#F9CBC5] text-[#912023]',
       codeBg: 'bg-[#181D26] text-[#E2E8F0]',
+      primaryColor: 'amber',
+      activeRecallText: 'text-amber-700 hover:text-amber-800',
+      jumpPillActive: 'text-amber-700',
+      highlightClass: 'bg-amber-200/60 text-amber-950 px-1 py-0.5 rounded',
+      buttonPrimary: 'bg-amber-600 hover:bg-amber-500 text-white',
+    },
+    purple: {
+      canvas: 'bg-[#F8F6FC] text-[#1E162A]',
+      card: 'bg-white border-[#E9E3F5] shadow-sm',
+      cardHover: 'hover:border-purple-300',
+      textMuted: 'text-[#685B7A]',
+      textHeading: 'text-[#1E162A]',
+      accentBg: 'bg-[#F1ECFA]',
+      accentBorder: 'border-[#DDD3EF]',
+      topBar: 'bg-[#F8F6FC]/90 border-[#E9E3F5]',
+      badge: 'bg-purple-100 text-purple-800 border border-purple-300',
+      analogyBg: 'bg-gradient-to-br from-[#F6F2FC] to-[#EEE7FA] border-purple-300 text-purple-950',
+      analogyBadge: 'bg-purple-200/90 text-purple-900 border-purple-400',
+      goalBg: 'bg-[#F4EFFC] border-purple-200 text-purple-950',
+      flowBg: 'bg-[#F0F4FA] border-[#D4E0F3] text-[#1E3B68]',
+      exampleBg: 'bg-[#F5F2F9] border-[#DFD5ED] text-[#4A2E78]',
+      dangerBg: 'bg-[#FDF2F1] border-[#F8CBC6] text-[#8F2420]',
+      codeBg: 'bg-[#171322] text-[#E2E8F0]',
+      primaryColor: 'purple',
+      activeRecallText: 'text-purple-700 hover:text-purple-800',
+      jumpPillActive: 'text-purple-700',
+      highlightClass: 'bg-purple-200/60 text-purple-950 px-1 py-0.5 rounded',
+      buttonPrimary: 'bg-purple-600 hover:bg-purple-500 text-white',
     },
     dark: {
       canvas: 'bg-[#0B0F17] text-[#E2E8F0]',
@@ -137,44 +189,34 @@ export default function NoteViewer({
       accentBg: 'bg-[#172033]',
       accentBorder: 'border-[#22304A]',
       topBar: 'bg-[#0B0F17]/90 border-[#1F293D]',
-      analogyBg: 'bg-gradient-to-br from-amber-950/25 to-amber-900/15 border-amber-500/30 text-amber-100',
-      analogyBadge: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+      badge: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
+      analogyBg: 'bg-gradient-to-br from-emerald-950/25 to-teal-900/15 border-emerald-500/30 text-emerald-100',
+      analogyBadge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+      goalBg: 'bg-emerald-950/20 border-emerald-500/30 text-emerald-100',
       flowBg: 'bg-sky-950/25 border-sky-500/30 text-sky-100',
       exampleBg: 'bg-emerald-950/25 border-emerald-500/30 text-emerald-100',
       dangerBg: 'bg-rose-950/30 border-rose-500/30 text-rose-100',
       codeBg: 'bg-[#06090F] text-[#E2E8F0]',
+      primaryColor: 'emerald',
+      activeRecallText: 'text-emerald-400 hover:text-emerald-300',
+      jumpPillActive: 'text-emerald-400',
+      highlightClass: 'bg-emerald-950/60 text-emerald-200 px-1 py-0.5 rounded border border-emerald-500/30',
+      buttonPrimary: 'bg-emerald-600 hover:bg-emerald-500 text-white',
     },
-    zen: {
-      canvas: 'bg-[#F2F5F0] text-[#142217]',
-      card: 'bg-white border-[#E0E7DC] shadow-sm',
-      cardHover: 'hover:border-[#CBD6C5]',
-      textMuted: 'text-[#55695A]',
-      textHeading: 'text-[#142217]',
-      accentBg: 'bg-[#E5ECE0]',
-      accentBorder: 'border-[#D1DDCB]',
-      topBar: 'bg-[#F2F5F0]/90 border-[#E0E7DC]',
-      analogyBg: 'bg-gradient-to-br from-[#FAF8ED] to-[#F5F2DF] border-[#DFDAAE] text-[#5C5517]',
-      analogyBadge: 'bg-[#EFE9B9] text-[#554E15] border-[#D9D193]',
-      flowBg: 'bg-[#EEF5F8] border-[#CCE0EA] text-[#1B4B61]',
-      exampleBg: 'bg-[#EDF6F0] border-[#C8E4D1] text-[#13572E]',
-      dangerBg: 'bg-[#FDF2F0] border-[#F6CBC5] text-[#8C231F]',
-      codeBg: 'bg-[#151F19] text-[#E2E8F0]',
-    },
-  }[theme] || themeStyles.paper;
+  }[theme] || themeStyles.zen;
 
-  // Font family and size classes
-  const fontClass = fontStyle === 'serif' ? 'font-reading-serif' : 'font-sans';
-  const sizeClass = {
-    compact: 'text-sm leading-normal',
-    normal: 'text-base leading-relaxed',
-    relaxed: 'text-lg leading-loose',
-  }[fontSize];
+  // Font family options (Sans, Serif, and Virgil / Excalidraw)
+  const fontClass = {
+    sans: 'font-sans',
+    serif: 'font-reading-serif',
+    virgil: 'font-reading-hand text-[1.05rem]',
+  }[fontStyle] || 'font-sans';
 
   if (!content) {
     return (
       <div className={`flex-1 rounded-3xl p-12 flex flex-col items-center justify-center text-center border ${themeStyles.canvas} ${themeStyles.card}`}>
-        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4">
-          <BookOpen className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+        <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4">
+          <BookOpen className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
         </div>
         <h3 className={`text-lg font-bold mb-1 ${themeStyles.textHeading}`}>No Study Note Selected</h3>
         <p className={`text-sm max-w-md ${themeStyles.textMuted}`}>
@@ -190,7 +232,7 @@ export default function NoteViewer({
       <div className={`px-6 py-3.5 border-b backdrop-blur-md sticky top-0 z-20 flex items-center justify-between flex-wrap gap-3 ${themeStyles.topBar}`}>
         {/* Note Title & Filename */}
         <div className="flex items-center gap-2.5 truncate max-w-sm sm:max-w-md">
-          <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+          <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
             <BookOpen className="w-4 h-4" />
           </span>
           <div className="truncate">
@@ -213,7 +255,7 @@ export default function NoteViewer({
               onClick={toggleAllAnswers}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
                 allAnswersRevealed
-                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                  ? `${themeStyles.accentBg} ${themeStyles.accentBorder} ${themeStyles.activeRecallText}`
                   : 'bg-transparent hover:bg-black/5 dark:hover:bg-white/5 border-transparent text-slate-500'
               }`}
               title={allAnswersRevealed ? 'Hide Answers for active recall' : 'Show all answers'}
@@ -227,14 +269,14 @@ export default function NoteViewer({
           {flashcards.length > 0 && (
             <button
               onClick={() => setFlashcardsOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm transition ${themeStyles.buttonPrimary}`}
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>{flashcards.length} Cards</span>
             </button>
           )}
 
-          {/* Typography Mode: Sans vs Serif */}
+          {/* Typography Mode: Sans vs Serif vs Excalidraw Virgil */}
           <div className={`flex items-center p-0.5 rounded-xl border ${themeStyles.accentBorder} ${themeStyles.accentBg}`}>
             <button
               onClick={() => setFontStyle('sans')}
@@ -254,30 +296,46 @@ export default function NoteViewer({
             >
               Serif
             </button>
+            <button
+              onClick={() => setFontStyle('virgil')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-reading-hand font-medium transition ${
+                fontStyle === 'virgil' ? 'bg-white dark:bg-slate-800 shadow-xs font-bold text-slate-900 dark:text-white' : 'text-slate-500'
+              }`}
+              title="Excalidraw Handwritten (Virgil)"
+            >
+              Virgil
+            </button>
           </div>
 
-          {/* Theme Selector */}
+          {/* Theme Selector (Zen Green, Warm Amber, Purple Light, Midnight Dark) */}
           <div className={`flex items-center p-0.5 rounded-xl border ${themeStyles.accentBorder} ${themeStyles.accentBg}`}>
             <button
+              onClick={() => onSelectTheme('zen')}
+              className={`p-1.5 rounded-lg text-xs transition ${theme === 'zen' ? 'bg-white shadow-xs text-emerald-700 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+              title="Matcha Zen (Green Leaves Mode)"
+            >
+              <Leaf className="w-3.5 h-3.5" />
+            </button>
+            <button
               onClick={() => onSelectTheme('paper')}
-              className={`p-1.5 rounded-lg text-xs transition ${theme === 'paper' ? 'bg-white shadow-xs text-amber-700' : 'text-slate-400 hover:text-slate-600'}`}
-              title="Warm Paper (Notion Light)"
+              className={`p-1.5 rounded-lg text-xs transition ${theme === 'paper' ? 'bg-white shadow-xs text-amber-700 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+              title="Warm Paper (Amber Notion Mode)"
             >
               <Sun className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => onSelectTheme('dark')}
-              className={`p-1.5 rounded-lg text-xs transition ${theme === 'dark' ? 'bg-slate-800 shadow-xs text-indigo-300' : 'text-slate-400 hover:text-slate-200'}`}
-              title="Midnight Obsidian"
+              onClick={() => onSelectTheme('purple')}
+              className={`p-1.5 rounded-lg text-xs transition ${theme === 'purple' ? 'bg-white shadow-xs text-purple-700 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+              title="Lilac Purple (Clean Light Mode)"
             >
-              <Moon className="w-3.5 h-3.5" />
+              <Sparkle className="w-3.5 h-3.5" />
             </button>
             <button
-              onClick={() => onSelectTheme('zen')}
-              className={`p-1.5 rounded-lg text-xs transition ${theme === 'zen' ? 'bg-white shadow-xs text-emerald-700' : 'text-slate-400 hover:text-slate-600'}`}
-              title="Matcha Zen"
+              onClick={() => onSelectTheme('dark')}
+              className={`p-1.5 rounded-lg text-xs transition ${theme === 'dark' ? 'bg-slate-800 shadow-xs text-emerald-300' : 'text-slate-400 hover:text-slate-200'}`}
+              title="Midnight Obsidian Dark Mode"
             >
-              <Leaf className="w-3.5 h-3.5" />
+              <Moon className="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -311,11 +369,11 @@ export default function NoteViewer({
               {/* Note Header & Goal Banner */}
               <header className="space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${themeStyles.badge}`}>
                     Day {parsed.meta.day_number || '01'}
                   </span>
                   {parsed.meta.topic && (
-                    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${themeStyles.badge}`}>
                       {parsed.meta.topic}
                     </span>
                   )}
@@ -335,12 +393,12 @@ export default function NoteViewer({
 
                 {/* The Goal Card */}
                 {parsed.goal && (
-                  <div className={`p-4 rounded-2xl border flex items-start gap-3.5 ${themeStyles.accentBg} ${themeStyles.accentBorder}`}>
-                    <div className="p-2 rounded-xl bg-amber-500 text-white mt-0.5 shadow-xs">
+                  <div className={`p-4 rounded-2xl border flex items-start gap-3.5 ${themeStyles.goalBg}`}>
+                    <div className="p-2 rounded-xl bg-emerald-600 text-white mt-0.5 shadow-xs">
                       <Target className="w-4 h-4" />
                     </div>
                     <div className="space-y-1">
-                      <div className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                      <div className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                         Action Goal
                       </div>
                       <p className={`text-sm sm:text-base font-medium ${themeStyles.textHeading}`}>
@@ -368,7 +426,7 @@ export default function NoteViewer({
                           href={`#concept-${c.index}`}
                           className={`px-3 py-1 rounded-xl text-xs font-medium border transition ${themeStyles.accentBg} ${themeStyles.accentBorder} ${themeStyles.cardHover} ${themeStyles.textMuted}`}
                         >
-                          <span className="font-bold text-amber-600 dark:text-amber-400 mr-1.5">
+                          <span className={`font-bold mr-1.5 ${themeStyles.jumpPillActive}`}>
                             {String(c.index).padStart(2, '0')}
                           </span>
                           {c.name}
@@ -384,7 +442,7 @@ export default function NoteViewer({
               {/* Concepts List */}
               <section className="space-y-8">
                 <div className="flex items-center gap-2">
-                  <span className="p-1 rounded-lg bg-indigo-500/10 text-indigo-500">
+                  <span className="p-1 rounded-lg bg-emerald-500/10 text-emerald-600">
                     <Lightbulb className="w-4 h-4" />
                   </span>
                   <h2 className={`text-lg font-bold tracking-tight ${themeStyles.textHeading}`}>
@@ -402,7 +460,7 @@ export default function NoteViewer({
                       {/* Concept Title */}
                       <div className="flex items-start justify-between gap-3 flex-wrap">
                         <div className="flex items-center gap-3">
-                          <span className="flex-shrink-0 w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 font-bold text-sm flex items-center justify-center">
+                          <span className={`flex-shrink-0 w-8 h-8 rounded-xl font-bold text-sm flex items-center justify-center ${themeStyles.badge}`}>
                             {String(concept.index).padStart(2, '0')}
                           </span>
                           <h3 className={`text-lg sm:text-xl font-bold tracking-tight ${themeStyles.textHeading}`}>
@@ -417,13 +475,13 @@ export default function NoteViewer({
                           <div className={`text-xs font-semibold uppercase tracking-wider ${themeStyles.textMuted}`}>
                             Definition in Simple Words
                           </div>
-                          <p className={`text-sm sm:text-base ${sizeClass} ${themeStyles.textHeading}`}>
+                          <p className={`text-sm sm:text-base leading-relaxed ${themeStyles.textHeading}`}>
                             {concept.definition}
                           </p>
                         </div>
                       )}
 
-                      {/* 2. Mental Model (Analogy Box) - THE HERO CARD */}
+                      {/* 2. Mental Model (Analogy Box) */}
                       {concept.analogy && (
                         <div className={`p-4 sm:p-5 rounded-2xl border space-y-2 relative overflow-hidden ${themeStyles.analogyBg}`}>
                           <div className="flex items-center justify-between">
@@ -442,7 +500,7 @@ export default function NoteViewer({
                       {concept.whoDoesWork && (
                         <div className={`p-4 rounded-2xl border space-y-1.5 ${themeStyles.flowBg}`}>
                           <div className="flex items-center gap-2">
-                            <Cpu className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                            <Cpu className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                             <span className="text-xs font-bold uppercase tracking-wider">
                               Who Does the Work & Data Flow
                             </span>
@@ -482,7 +540,7 @@ export default function NoteViewer({
                           <ul className="space-y-1.5 text-xs sm:text-sm">
                             {concept.gotchas.map((g, gIdx) => (
                               <li key={gIdx} className={`flex items-start gap-2 ${themeStyles.textMuted}`}>
-                                <span className="text-amber-500 mt-1">•</span>
+                                <span className="text-emerald-500 mt-1">•</span>
                                 <span>{g}</span>
                               </li>
                             ))}
@@ -504,7 +562,7 @@ export default function NoteViewer({
                       {/* 7. Interview Questions (Active-Recall Cards) */}
                       {concept.interviewQuestions.length > 0 && (
                         <div className="pt-2 space-y-3">
-                          <div className="text-xs font-bold uppercase tracking-wider text-indigo-500 flex items-center gap-1.5">
+                          <div className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                             <HelpCircle className="w-3.5 h-3.5" />
                             <span>Interview Questions ({concept.interviewQuestions.length})</span>
                           </div>
@@ -522,11 +580,11 @@ export default function NoteViewer({
                                   <div className="flex items-start justify-between gap-2">
                                     <div className="space-y-1">
                                       <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                                        <span className={`text-xs font-bold ${themeStyles.jumpPillActive}`}>
                                           Q{qIdx + 1}
                                         </span>
                                         {iq.isExtra && (
-                                          <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-violet-500/20 text-violet-400 border border-violet-500/30">
+                                          <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-violet-500/20 text-violet-600 dark:text-violet-400 border border-violet-500/30">
                                             (Extra)
                                           </span>
                                         )}
@@ -557,7 +615,7 @@ export default function NoteViewer({
                                   ) : (
                                     <button
                                       onClick={() => toggleAnswer(qKey)}
-                                      className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                                      className={`mt-2 text-xs font-medium hover:underline flex items-center gap-1 ${themeStyles.activeRecallText}`}
                                     >
                                       <span>Tap to test your recall</span>
                                       <ArrowRight className="w-3 h-3" />
@@ -578,7 +636,7 @@ export default function NoteViewer({
               {parsed.howConceptsConnect && (
                 <section className={`p-6 sm:p-7 rounded-3xl border space-y-3 ${themeStyles.card}`}>
                   <div className="flex items-center gap-2">
-                    <span className="p-1 rounded-lg bg-indigo-500/10 text-indigo-500">
+                    <span className="p-1 rounded-lg bg-emerald-500/10 text-emerald-600">
                       <Layers className="w-4 h-4" />
                     </span>
                     <h2 className={`text-base sm:text-lg font-bold tracking-tight ${themeStyles.textHeading}`}>
@@ -663,7 +721,7 @@ export default function NoteViewer({
                     <ul className="space-y-1 text-xs sm:text-sm">
                       {parsed.openDoubts.map((doubt, dIdx) => (
                         <li key={dIdx} className={`flex items-start gap-2 ${themeStyles.textMuted}`}>
-                          <span className="text-amber-500 mt-1">•</span>
+                          <span className="text-emerald-500 mt-1">•</span>
                           <span>{doubt}</span>
                         </li>
                       ))}
@@ -679,7 +737,7 @@ export default function NoteViewer({
                 remarkPlugins={[remarkGfm]}
                 components={{
                   h1: ({ node, ...props }) => <h1 className="text-2xl font-bold pb-2 mb-4 border-b border-black/10 dark:border-white/10" {...props} />,
-                  h2: ({ node, ...props }) => <h2 className="text-xl font-bold mt-6 mb-3 text-indigo-600 dark:text-indigo-400" {...props} />,
+                  h2: ({ node, ...props }) => <h2 className="text-xl font-bold mt-6 mb-3 text-emerald-600 dark:text-emerald-400" {...props} />,
                   h3: ({ node, ...props }) => <h3 className="text-lg font-semibold mt-4 mb-2" {...props} />,
                   table: ({ node, ...props }) => (
                     <div className="overflow-x-auto my-6 rounded-xl border border-black/10 dark:border-white/10">
@@ -690,7 +748,7 @@ export default function NoteViewer({
                   td: ({ node, ...props }) => <td className="p-3 border-t border-black/5 dark:border-white/5 align-top" {...props} />,
                   code: ({ node, inline, children, ...props }) => {
                     return inline ? (
-                      <code className="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono text-xs text-amber-700 dark:text-amber-300" {...props}>
+                      <code className="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono text-xs text-emerald-700 dark:text-emerald-300" {...props}>
                         {children}
                       </code>
                     ) : (

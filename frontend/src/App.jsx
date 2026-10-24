@@ -21,8 +21,8 @@ export default function App() {
   const [selectedFilename, setSelectedFilename] = useState(null);
   const [selectedContent, setSelectedContent] = useState(null);
 
-  // Reading Experience Settings
-  const [theme, setTheme] = useState('paper'); // 'paper' | 'dark' | 'zen'
+  // Reading Experience Settings (Default to the loved 'zen' green leaves mode!)
+  const [theme, setTheme] = useState('zen'); // 'zen' | 'purple' | 'dark'
   const [isZenMode, setIsZenMode] = useState(false);
 
   // Fetch existing notes
@@ -186,16 +186,25 @@ export default function App() {
 
   // App container theme styles
   const appBackground = {
+    zen: 'bg-[#F3F6F1] text-[#142217]',
     paper: 'bg-[#FAF7F2] text-[#1C1917]',
+    purple: 'bg-[#F8F6FC] text-[#1E162A]',
     dark: 'bg-[#0A0E17] text-[#F1F5F9]',
-    zen: 'bg-[#F2F5F0] text-[#142217]',
-  }[theme] || 'bg-[#FAF7F2] text-[#1C1917]';
+  }[theme] || 'bg-[#F3F6F1] text-[#142217]';
 
   const drawerCard = {
+    zen: 'bg-white border-[#DDE5D9] shadow-sm',
     paper: 'bg-white border-[#E7E2DA] shadow-sm',
+    purple: 'bg-white border-[#E9E3F5] shadow-sm',
     dark: 'bg-[#111827] border-[#1F293D] shadow-xl',
-    zen: 'bg-white border-[#E0E7DC] shadow-sm',
-  }[theme] || 'bg-white border-[#E7E2DA]';
+  }[theme] || 'bg-white border-[#DDE5D9]';
+
+  const buttonStyle = {
+    zen: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs',
+    paper: 'bg-amber-600 hover:bg-amber-500 text-white shadow-xs',
+    purple: 'bg-purple-600 hover:bg-purple-500 text-white shadow-xs',
+    dark: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs',
+  }[theme] || 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs';
 
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${appBackground}`}>
@@ -214,7 +223,7 @@ export default function App() {
             <div className={`rounded-3xl border p-5 sm:p-6 relative overflow-hidden ${drawerCard}`}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                     <Sparkles className="w-4 h-4" />
                   </span>
                   <div>
@@ -243,13 +252,13 @@ export default function App() {
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     placeholder="Paste YouTube video or playlist URL..."
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-500/5 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:border-amber-500 transition"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-500/5 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:border-emerald-500 transition"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isProcessing || !url.trim()}
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-xs text-white shadow-xs transition flex items-center justify-center gap-2 whitespace-nowrap"
+                  className={`px-5 py-2.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-xs transition flex items-center justify-center gap-2 whitespace-nowrap ${buttonStyle}`}
                 >
                   {isProcessing ? (
                     <>
@@ -283,14 +292,14 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setUrl('https://www.youtube.com/watch?v=e7oU6ZCvRrw')}
-                  className="px-2.5 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-700 dark:text-amber-300 transition"
+                  className="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 transition"
                 >
                   Episode 04 : Tokens Explained
                 </button>
                 <button
                   type="button"
                   onClick={() => setUrl('https://www.youtube.com/watch?v=solZdnrrtG4')}
-                  className="px-2.5 py-0.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 transition"
+                  className="px-2.5 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-800 dark:text-purple-300 transition"
                 >
                   Episode 08 : ReAct Intro to AI Agents
                 </button>

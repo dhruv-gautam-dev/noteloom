@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Search, BookOpen, RefreshCw, Trash2, X, Compass, Bookmark } from 'lucide-react';
+import { FileText, Search, RefreshCw, Trash2, X, Bookmark } from 'lucide-react';
 
 export default function VaultSidebar({
   notes = [],
@@ -7,7 +7,7 @@ export default function VaultSidebar({
   onSelectNote,
   onRefresh,
   onClearVault,
-  theme = 'paper',
+  theme = 'zen',
 }) {
   const [search, setSearch] = useState('');
 
@@ -16,41 +16,55 @@ export default function VaultSidebar({
   );
 
   const sidebarTheme = {
+    zen: {
+      bg: 'bg-white border-[#DDE5D9]',
+      textHeading: 'text-[#142217]',
+      textMuted: 'text-[#4F6454]',
+      searchBg: 'bg-[#F3F6F1] border-[#DDE5D9] text-[#142217] focus:border-emerald-500',
+      activeItem: 'bg-emerald-50 border-emerald-400 text-emerald-900 font-bold shadow-xs',
+      inactiveItem: 'text-[#37493C] hover:bg-[#F3F6F1] border-transparent',
+      specialItem: 'text-emerald-800 hover:bg-emerald-50/50 border-transparent',
+      iconActive: 'text-emerald-700',
+    },
     paper: {
       bg: 'bg-white border-[#E7E2DA]',
       textHeading: 'text-[#1C1917]',
       textMuted: 'text-[#78716C]',
-      searchBg: 'bg-[#FAF7F2] border-[#E7E2DA] text-[#1C1917]',
-      activeItem: 'bg-[#FAF2E6] border-amber-500/40 text-amber-900 font-bold',
+      searchBg: 'bg-[#FAF7F2] border-[#E7E2DA] text-[#1C1917] focus:border-amber-500',
+      activeItem: 'bg-[#FAF2E6] border-amber-400 text-amber-900 font-bold shadow-xs',
       inactiveItem: 'text-[#44403C] hover:bg-[#FAF7F2] border-transparent',
-      specialItem: 'text-indigo-800 hover:bg-indigo-50/50 border-transparent',
+      specialItem: 'text-amber-800 hover:bg-amber-50/50 border-transparent',
+      iconActive: 'text-amber-700',
+    },
+    purple: {
+      bg: 'bg-white border-[#E9E3F5]',
+      textHeading: 'text-[#1E162A]',
+      textMuted: 'text-[#685B7A]',
+      searchBg: 'bg-[#F8F6FC] border-[#E9E3F5] text-[#1E162A] focus:border-purple-500',
+      activeItem: 'bg-purple-50 border-purple-400 text-purple-900 font-bold shadow-xs',
+      inactiveItem: 'text-[#453755] hover:bg-[#F8F6FC] border-transparent',
+      specialItem: 'text-purple-800 hover:bg-purple-50/50 border-transparent',
+      iconActive: 'text-purple-700',
     },
     dark: {
       bg: 'bg-[#111827] border-[#1F293D]',
       textHeading: 'text-white',
       textMuted: 'text-slate-400',
-      searchBg: 'bg-[#0B0F17] border-[#1F293D] text-slate-200',
-      activeItem: 'bg-amber-500/15 border-amber-500/40 text-amber-300 font-bold',
+      searchBg: 'bg-[#0B0F17] border-[#1F293D] text-slate-200 focus:border-emerald-500',
+      activeItem: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 font-bold shadow-xs',
       inactiveItem: 'text-slate-300 hover:bg-slate-800/50 border-transparent',
-      specialItem: 'text-indigo-300 hover:bg-indigo-950/30 border-transparent',
-    },
-    zen: {
-      bg: 'bg-white border-[#E0E7DC]',
-      textHeading: 'text-[#142217]',
-      textMuted: 'text-[#55695A]',
-      searchBg: 'bg-[#F2F5F0] border-[#E0E7DC] text-[#142217]',
-      activeItem: 'bg-[#EBF2E8] border-emerald-500/40 text-emerald-900 font-bold',
-      inactiveItem: 'text-[#2D3A30] hover:bg-[#F2F5F0] border-transparent',
-      specialItem: 'text-teal-800 hover:bg-teal-50/50 border-transparent',
+      specialItem: 'text-emerald-400 hover:bg-emerald-950/30 border-transparent',
+      iconActive: 'text-emerald-400',
     },
   }[theme] || {
-    bg: 'bg-slate-900 border-slate-800',
-    textHeading: 'text-white',
-    textMuted: 'text-slate-400',
-    searchBg: 'bg-slate-950 border-slate-800 text-slate-200',
-    activeItem: 'bg-indigo-600/20 border-indigo-500 text-white font-medium',
-    inactiveItem: 'text-slate-300 hover:bg-slate-800/40 border-transparent',
-    specialItem: 'text-indigo-300 hover:bg-indigo-900/20 border-transparent',
+    bg: 'bg-white border-[#DDE5D9]',
+    textHeading: 'text-[#142217]',
+    textMuted: 'text-[#4F6454]',
+    searchBg: 'bg-[#F3F6F1] border-[#DDE5D9] text-[#142217] focus:border-emerald-500',
+    activeItem: 'bg-emerald-50 border-emerald-400 text-emerald-900 font-bold shadow-xs',
+    inactiveItem: 'text-[#37493C] hover:bg-[#F3F6F1] border-transparent',
+    specialItem: 'text-emerald-800 hover:bg-emerald-50/50 border-transparent',
+    iconActive: 'text-emerald-700',
   };
 
   return (
@@ -58,7 +72,7 @@ export default function VaultSidebar({
       {/* Header */}
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
-          <Bookmark className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          <Bookmark className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           <h3 className={`text-xs font-bold uppercase tracking-wider ${sidebarTheme.textHeading}`}>
             Obsidian Vault ({notes.length})
           </h3>
@@ -92,7 +106,7 @@ export default function VaultSidebar({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Filter notes..."
-          className={`w-full pl-8 pr-7 py-1.5 rounded-xl border text-xs placeholder-slate-400 focus:outline-none focus:border-amber-500 transition ${sidebarTheme.searchBg}`}
+          className={`w-full pl-8 pr-7 py-1.5 rounded-xl border text-xs placeholder-slate-400 focus:outline-none transition ${sidebarTheme.searchBg}`}
         />
         {search && (
           <button
@@ -115,7 +129,6 @@ export default function VaultSidebar({
             const isSelected = selectedFilename === note.filename;
             const isSpecial = note.is_index_or_glossary;
 
-            // Clean display title
             const rawStem = note.stem || note.filename.replace(/\.md$/, '');
             const cleanTitle = rawStem
               .replace(/^\d+_/, '')
@@ -138,7 +151,7 @@ export default function VaultSidebar({
                   <FileText
                     className={`w-3.5 h-3.5 flex-shrink-0 ${
                       isSelected
-                        ? 'text-amber-600 dark:text-amber-400'
+                        ? sidebarTheme.iconActive
                         : isSpecial
                         ? 'text-indigo-500'
                         : 'text-slate-400'

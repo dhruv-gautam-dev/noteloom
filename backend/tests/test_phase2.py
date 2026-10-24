@@ -30,6 +30,12 @@ def test_url_parsing():
     assert v_id == "dQw4w9WgXcQ"
 
 
+def test_non_youtube_url_rejected():
+    with pytest.raises(ValueError) as exc:
+        YouTubeService.fetch_metadata("https://missav.ws/en/fc2-ppv-4985073")
+    assert "only supports YouTube" in str(exc.value)
+
+
 def test_text_cleaning():
     raw = "[Music] Hello world (applause) this is is a distributed system test [Laughter]"
     cleaned = YouTubeService.clean_transcript_text(raw)
