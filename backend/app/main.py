@@ -128,6 +128,15 @@ async def create_job(payload: CreateJobRequest):
     return CreateJobResponse(job_id=job.job_id, status=job.status, url=job.url)
 
 
+@app.get("/api/jobs/latest")
+def get_latest_job():
+    """Returns the most recent job to restore UI state across page reloads."""
+    job = JobManager.get_latest_job()
+    if not job:
+        return {"status": "none"}
+    return job
+
+
 @app.get("/api/jobs/{job_id}", response_model=JobState)
 def get_job(job_id: str):
     """Retrieves current job status, accumulated events, and generated notes."""
@@ -214,4 +223,19 @@ def download_vault_zip():
         media_type="application/zip",
         headers={"Content-Disposition": "attachment; filename=noteloom_vault.zip"},
     )
+
+
+@app.post("/api/vault/clear")
+def clear_vault():
+    """Clears all markdown files from the vault for a fresh start."""
+    vault = config.vault_dir
+    count = 0
+    if vault.exists():
+        for file in vault.glob("*.md"):
+            try:
+                file.unlink()
+                count += 1
+            except Exception:
+                pass
+    return {"status": "cleared", "deleted_count": count}
 

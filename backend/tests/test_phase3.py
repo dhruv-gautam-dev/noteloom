@@ -23,7 +23,11 @@ from backend.app.schemas import (
     RenderedNote,
     IngestionResult,
     TranscriptData,
+    StudyNote,
+    TeacherConcept,
+    ConceptInterviewQuestion,
 )
+from backend.app.services.vault_service import VaultService
 from backend.app.agents.writer_agent import WriterAgent
 from backend.app.agents.memory_agent import PlaylistMemoryAgent
 from backend.app.agents.critic_agent import CriticAgent
@@ -167,15 +171,24 @@ def test_playlist_memory_agent(sample_video, sample_concepts, tmp_path):
 
 def test_critic_agent_heuristic_check(sample_video, sample_concepts):
     transcript = "In this video we study Raft. When a follower does not receive a heartbeat within election timeout it transitions to candidate and requests votes."
-    result, events = CriticAgent.execute(
-        job_id="test_job",
-        video=sample_video,
-        cleaned_transcript=transcript,
-        concepts=sample_concepts,
-    )
+    from backend.app.schemas import GroundingCheckResult
+    with patch("backend.app.services.gemini_service.GeminiService.generate_structured") as mock_gen:
+        mock_gen.return_value = GroundingCheckResult(
+            passed=True,
+            score=0.92,
+            hallucination_detected=False,
+            unbacked_claims=[],
+            feedback="Evidence verified against transcript.",
+        )
+        result, events = CriticAgent.execute(
+            job_id="test_job",
+            video=sample_video,
+            cleaned_transcript=transcript,
+            concepts=sample_concepts,
+        )
 
-    assert result.passed is True
-    assert result.score > 0.6
+        assert result.passed is True
+        assert result.score > 0.6
 
 
 def test_orchestrator_handles_missing_transcript(sample_video, tmp_path):
@@ -211,3 +224,76 @@ def test_orchestrator_handles_missing_transcript(sample_video, tmp_path):
             assert (tmp_path / notes[0].file_name).exists()
             assert (tmp_path / "INDEX.md").exists()
             assert any(ev.step.value == "done" for ev in dispatched_events)
+
+
+def test_render_teacher_study_note_with_attribution_and_production_gotcha(sample_video, tmp_path):
+    study_note = StudyNote(
+        video_id=sample_video.video_id,
+        video_title=sample_video.title,
+        day_number=1,
+        topic="Consensus & Leader Election",
+        one_line_goal="After this video I should be able to design a leader election protocol with quorum safety.",
+        prerequisites="Basic networking and socket concepts",
+        concepts=[
+            TeacherConcept(
+                name="Heartbeat Timeout Trigger",
+                definition="A timer that resets every time a follower receives a ping from the active leader.",
+                analogy="Like a security guard pressing a dead-man button every 5 minutes; if he stops, the alarm rings.",
+                who_does_work="My code runs the timer thread and handles timeout callbacks; no LLM involved.",
+                video_example="Nodes set election timeout between 150ms and 300ms to avoid split votes.",
+                why_it_matters="Detects network partitions or leader crashes automatically in production clusters.",
+                gotchas=[
+                    "Using identical timeouts on all nodes causes persistent split votes.",
+                    "Network jitter can trigger false-positive elections. (Extra)",
+                ],
+                production_safety_gotcha="Clock drift or CPU starvation can pause the timer thread, causing cascading elections.",
+                interview_questions=[
+                    ConceptInterviewQuestion(
+                        question="Why are election timeouts randomized in Raft?",
+                        answer="Randomization ensures one follower times out and starts collecting votes before others split the vote.",
+                        is_extra=False,
+                    ),
+                    ConceptInterviewQuestion(
+                        question="How do you handle split-brain in a network partition? (Extra)",
+                        answer="A leader requires a quorum of (N/2 + 1) nodes to commit entries, preventing the partitioned minority from committing writes.",
+                        is_extra=True,
+                    ),
+                ],
+            )
+        ],
+        how_concepts_connect="Follower heartbeats fail ➔ Election timeout triggers ➔ Candidate requests majority votes ➔ New leader elected.\nFlow: Heartbeat Timeout ➔ Candidate State ➔ Quorum Vote ➔ Active Leader",
+        code_snippets="# WHY: Check if leader heartbeat timed out\nif time.time() - last_heartbeat > timeout:\n    state = 'CANDIDATE'\n    start_election()",
+        summary="Raft ensures high availability and consensus by electing a single leader via randomized timeouts and majority quorum votes.",
+        open_doubts=[
+            "How does Raft handle joint consensus during dynamic cluster membership changes?",
+            "What is pre-vote protocol to prevent disrupted nodes from resetting terms?",
+        ],
+        practice_task="Implement a 3-node simulated cluster in Python with randomized election timeouts.",
+    )
+
+    rendered = VaultService.render_teacher_study_note(
+        video=sample_video,
+        note=study_note,
+        vault_path=tmp_path,
+    )
+
+    assert rendered.file_name == "01_raft-consensus-algorithm-explained.md"
+    assert (tmp_path / rendered.file_name).exists()
+
+    md = rendered.markdown_content
+    # Check Header
+    assert "# Day 01: Raft Consensus Algorithm Explained - Consensus & Leader Election" in md
+    assert "> **Goal:** After this video I should be able to design a leader election protocol" in md
+    # Check Attribution & Production Gotcha
+    assert "- **Who Does the Work & Data Flow:** My code runs the timer thread and handles timeout callbacks; no LLM involved." in md
+    assert "- 🚨 **Production/Safety Gotcha:** Clock drift or CPU starvation can pause the timer thread, causing cascading elections." in md
+    # Check Extra Tagging
+    assert "`(Extra)`" in md
+    # Check Minimal Code Snippet
+    assert "```python" in md
+    assert "# WHY: Check if leader heartbeat timed out" in md
+    # Check Flow & Footer
+    assert "## 🔗 How the Concepts Connect" in md
+    assert "Flow: Heartbeat Timeout ➔ Candidate State ➔ Quorum Vote ➔ Active Leader" in md
+    assert "- **Apply It (Practice Task):** Implement a 3-node simulated cluster" in md
+

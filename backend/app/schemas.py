@@ -55,16 +55,75 @@ class TranscriptData(BaseModel):
     cleaned_text: str = ""
     language: str = "en"
     word_count: int = 0
-    fallback_reason: Optional[str] = None  # e.g., "Captions disabled or not available on YouTube"
+    fallback_reason: Optional[str] = None
 
 
 # ==========================================
-# 3. Concept Extractor Schemas (Grounded)
+# 3. Expert Teacher & Study Note Schemas
+# ==========================================
+
+class ConceptInterviewQuestion(BaseModel):
+    question: str
+    answer: str
+    is_extra: bool = Field(
+        default=False,
+        description="True if this interview question was NOT explicitly covered in the video"
+    )
+
+
+class TeacherConcept(BaseModel):
+    name: str = Field(description="Name of the important technical concept")
+    definition: str = Field(description="1-2 lines in simple words as if explaining to a beginner")
+    analogy: str = Field(description="A real-life comparison that makes the concept click BEFORE code or theory")
+    who_does_work: str = Field(
+        description="Explain WHO does the work (the LLM, or my code?) and the exact flow of data between them"
+    )
+    video_example: str = Field(
+        description="The exact example the instructor used, shortened. Numbers and details must match video exactly."
+    )
+    why_it_matters: str = Field(description="Where it is used in real production projects")
+    gotchas: List[str] = Field(
+        description="Common mistakes or confusions candidates make (mark (Extra) if not in video)"
+    )
+    production_safety_gotcha: str = Field(
+        description="One critical safety or production gotcha (e.g. security, hallucination, infinite loop, cost blowup, latency)"
+    )
+    interview_questions: List[ConceptInterviewQuestion] = Field(
+        description="2-3 likely interview questions with short answers (mark not covered as is_extra=True). No repeated questions across concepts."
+    )
+
+
+class StudyNote(BaseModel):
+    video_id: str
+    video_title: str
+    day_number: int = 1
+    topic: str = Field(description="Specific technical topic")
+    one_line_goal: str = Field(description="Action goal: 'After this video I should be able to ___'")
+    prerequisites: str = Field(description="Prerequisites or 'None'")
+    concepts: List[TeacherConcept] = Field(
+        description="4 to 8 important concepts max. Merge overlapping concepts. Skip filler and minor details.",
+        min_length=1,
+        max_length=10,
+    )
+    how_concepts_connect: str = Field(
+        description="Explain relationships between concepts (what depends on what, why X exists because of problem Y) followed by a simple flow e.g. A → B → C"
+    )
+    code_snippets: Optional[str] = Field(
+        default=None,
+        description="A complete minimal working example, including the main loop, not just helper pieces. Numbers and examples in code must match the video exactly. Add a comment above each key line explaining WHY it is there. If no code was shown, leave as null."
+    )
+    summary: str = Field(description="3-5 line summary of the whole video in plain words")
+    open_doubts: List[str] = Field(description="2-3 open doubts or topics worth looking up later")
+    practice_task: str = Field(description="One concrete practice task or mini project to apply this video")
+
+
+# ==========================================
+# Legacy Models (Preserved for compatibility)
 # ==========================================
 
 class TaggedText(BaseModel):
     text: str
-    is_extra: bool = False  # True if inferred/extended beyond transcript
+    is_extra: bool = False
 
 
 class InstructorExample(BaseModel):
@@ -73,21 +132,15 @@ class InstructorExample(BaseModel):
 
 
 class Concept(BaseModel):
-    name: str = Field(description="Name of the technical concept, algorithm, or pattern")
-    one_line: str = Field(description="Crisp 1-sentence plain English explanation")
-    why_it_matters: str = Field(description="The concrete engineering problem or bottleneck it solves")
-    how_it_works: List[TaggedText] = Field(description="Step-by-step internal mechanisms")
-    evidence_snippet: str = Field(
-        description="Verbatim 6-50 word quote directly from the transcript grounding this concept"
-    )
-    instructor_example: Optional[InstructorExample] = Field(
-        default=None, description="The concrete example used in the video, or None if not demonstrated"
-    )
-    trade_offs: List[str] = Field(default_factory=list, description="Known trade-offs and constraints")
-    common_pitfalls: List[str] = Field(default_factory=list, description="Common developer or interview mistakes")
-    already_covered_in: Optional[str] = Field(
-        default=None, description="Reference to earlier video if previously introduced"
-    )
+    name: str
+    one_line: str
+    why_it_matters: str
+    how_it_works: List[TaggedText]
+    evidence_snippet: str
+    instructor_example: Optional[InstructorExample] = None
+    trade_offs: List[str] = Field(default_factory=list)
+    common_pitfalls: List[str] = Field(default_factory=list)
+    already_covered_in: Optional[str] = None
 
 
 class VideoConcepts(BaseModel):
@@ -97,28 +150,19 @@ class VideoConcepts(BaseModel):
     concepts: List[Concept] = Field(min_length=1, max_length=10)
 
 
-# ==========================================
-# 4. Staff Interviewer Schemas
-# ==========================================
-
 class QuestionLevel(str, Enum):
-    SCREENING = "screening"          # Rapid conceptual check (30-60s answer)
-    UNDER_THE_HOOD = "under_the_hood" # Internal mechanisms, failure modes, concurrency
-    SYSTEM_DESIGN = "system_design"  # Architecture, scaling, real-world scenario
-    TRADEOFF = "trade_off"           # Comparing X vs Y
+    SCREENING = "screening"
+    UNDER_THE_HOOD = "under_the_hood"
+    SYSTEM_DESIGN = "system_design"
+    TRADEOFF = "trade_off"
 
 
 class InterviewQuestion(BaseModel):
     level: QuestionLevel
     question: str
     model_answer: str
-    interviewer_rubric: str = Field(
-        description="Key points and signals a bar-raiser looks for in an optimal candidate answer"
-    )
-    candidate_traps: List[str] = Field(
-        default_factory=list,
-        description="Frequent mistakes or red flags average candidates make on this question"
-    )
+    interviewer_rubric: str
+    candidate_traps: List[str] = Field(default_factory=list)
 
 
 class TradeOffRow(BaseModel):
@@ -138,15 +182,13 @@ class FlashCard(BaseModel):
 
 class CheatSheetItem(BaseModel):
     topic: str
-    quick_fact: str  # e.g., "B+ Tree: O(log N) search/insert, sequential leaf scans, disk-friendly"
+    quick_fact: str
     is_extra: bool = False
 
 
 class InterviewPrepPack(BaseModel):
     video_id: str
-    elevator_pitch: str = Field(
-        description="Crisp 60-second summary answering: What is this topic and why does it matter?"
-    )
+    elevator_pitch: str
     questions: List[InterviewQuestion]
     trade_off_matrix: List[TradeOffRow]
     candidate_red_flags: List[str]
@@ -155,7 +197,7 @@ class InterviewPrepPack(BaseModel):
 
 
 # ==========================================
-# 5. Synthesis & Rendered Note Schemas
+# 4. Synthesis & Rendered Note Schemas
 # ==========================================
 
 class RenderedNote(BaseModel):
@@ -169,7 +211,7 @@ class RenderedNote(BaseModel):
 
 
 # ==========================================
-# 6. Quality Critic Schemas
+# 5. Quality Critic Schemas
 # ==========================================
 
 class GroundingCheckResult(BaseModel):
@@ -181,7 +223,7 @@ class GroundingCheckResult(BaseModel):
 
 
 # ==========================================
-# 7. Job & Real-Time Event Streaming Schemas
+# 6. Job & Real-Time Event Streaming Schemas
 # ==========================================
 
 class JobStatus(str, Enum):
@@ -215,4 +257,3 @@ class JobEvent(BaseModel):
     video_index: Optional[int] = None
     total_videos: Optional[int] = None
     timestamp: str
-

@@ -38,7 +38,7 @@ class GeminiService:
     ) -> T:
         """
         Calls Gemini with structured JSON output enforcing a Pydantic schema.
-        Returns the parsed Pydantic object directly.
+        Automatically falls back to alternative models if a 429 quota limit is encountered.
         """
         client = cls.get_client()
 
@@ -50,19 +50,39 @@ class GeminiService:
         if system_instruction:
             generate_config.system_instruction = system_instruction
 
-        response = client.models.generate_content(
-            model=model,
-            contents=prompt,
-            config=generate_config,
-        )
+        # Candidate models for automatic failover when hitting 429 rate limits
+        models_to_try = [model]
+        for fallback in ["gemini-2.5-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash"]:
+            if fallback not in models_to_try:
+                models_to_try.append(fallback)
 
-        # google-genai automatically populates response.parsed when response_schema is passed
-        if response.parsed is not None:
-            return response.parsed
+        last_error = None
+        for m in models_to_try:
+            try:
+                response = client.models.generate_content(
+                    model=m,
+                    contents=prompt,
+                    config=generate_config,
+                )
 
-        # Fallback parsing if needed
-        import json
-        raw_text = response.text or "{}"
-        data = json.loads(raw_text)
-        return response_schema.model_validate(data)
+                if response.parsed is not None:
+                    return response.parsed
+
+                # Fallback manual parsing if response.parsed was not populated
+                import json
+                raw_text = response.text or "{}"
+                data = json.loads(raw_text)
+                return response_schema.model_validate(data)
+
+            except Exception as e:
+                err_str = str(e)
+                # If quota exhausted (429), try next model in the list
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                    last_error = e
+                    continue
+                # For any other fatal error (e.g. invalid schema, bad prompt), re-raise immediately
+                raise e
+
+        if last_error:
+            raise last_error
 

@@ -17,11 +17,11 @@ class AppConfig(BaseModel):
     # API Keys
     gemini_api_key: str = Field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
 
-    # Gemini Models
+    # Gemini Models (gemini-2.5-flash has full structured JSON support and generous free-tier limits)
     extractor_model: str = Field(default_factory=lambda: os.getenv("EXTRACTOR_MODEL", "gemini-2.5-flash"))
-    interviewer_model: str = Field(default_factory=lambda: os.getenv("INTERVIEWER_MODEL", "gemini-2.5-pro"))
+    interviewer_model: str = Field(default_factory=lambda: os.getenv("INTERVIEWER_MODEL", "gemini-2.5-flash"))
     writer_model: str = Field(default_factory=lambda: os.getenv("WRITER_MODEL", "gemini-2.5-flash"))
-    critic_model: str = Field(default_factory=lambda: os.getenv("CRITIC_MODEL", "gemini-2.5-pro"))
+    critic_model: str = Field(default_factory=lambda: os.getenv("CRITIC_MODEL", "gemini-2.5-flash"))
 
     # Temperatures
     extractor_temperature: float = 0.2

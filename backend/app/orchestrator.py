@@ -16,10 +16,7 @@ from backend.app.schemas import (
 )
 from backend.app.agents.ingestion_agent import IngestionAgent
 from backend.app.agents.transcript_agent import TranscriptAgent
-from backend.app.agents.concept_extractor_agent import ConceptExtractorAgent
-from backend.app.agents.interviewer_agent import InterviewerAgent
-from backend.app.agents.critic_agent import CriticAgent
-from backend.app.agents.writer_agent import WriterAgent
+from backend.app.agents.teacher_note_agent import TeacherNoteAgent
 from backend.app.agents.memory_agent import PlaylistMemoryAgent
 from backend.app.services.vault_service import VaultService
 
@@ -43,9 +40,10 @@ class PipelineOrchestrator:
         # ----------------------------------------------------
         # Stage 1: Ingestion Scout Agent
         # ----------------------------------------------------
-        ingestion_result, ing_events = IngestionAgent.execute(job_id, url)
+        ingestion_result, ing_events = await asyncio.to_thread(IngestionAgent.execute, job_id, url)
         for ev in ing_events:
             dispatch(ev)
+        await asyncio.sleep(0.01)
 
         total_videos = len(ingestion_result.videos)
         playlist_title = ingestion_result.playlist_title or "Interview Prep Notes"
@@ -57,16 +55,18 @@ class PipelineOrchestrator:
         # ----------------------------------------------------
         for video in ingestion_result.videos:
             # Step 2: Transcript & Cleaner Agent
-            transcript, tr_events = TranscriptAgent.execute(
-                job_id=job_id, video=video, total_videos=total_videos
+            transcript, tr_events = await asyncio.to_thread(
+                TranscriptAgent.execute, job_id=job_id, video=video, total_videos=total_videos
             )
             for ev in tr_events:
                 dispatch(ev)
+            await asyncio.sleep(0.01)
 
             # Fallback check
             if not transcript.available:
                 # Captions are missing -> generate fallback note immediately
-                fallback_note = VaultService.render_fallback_note(
+                fallback_note = await asyncio.to_thread(
+                    VaultService.render_fallback_note,
                     video=video,
                     reason=transcript.fallback_reason or "Captions unavailable.",
                 )
@@ -88,58 +88,52 @@ class PipelineOrchestrator:
                 )
 
                 # Keep index updated
-                PlaylistMemoryAgent.render_index_markdown(rendered_notes, playlist_title)
+                await asyncio.to_thread(PlaylistMemoryAgent.render_index_markdown, rendered_notes, playlist_title)
+                await asyncio.sleep(0.01)
                 continue
 
-            # Step 3: Concept Extractor Agent (Grounded)
-            concepts, conc_events = ConceptExtractorAgent.execute(
+            # Step 3: Expert Teacher & Note-Maker Agent
+            study_note, teacher_events = await asyncio.to_thread(
+                TeacherNoteAgent.execute,
                 job_id=job_id,
                 video=video,
                 cleaned_transcript=transcript.cleaned_text,
-                earlier_concepts=cumulative_concepts,
                 total_videos=total_videos,
             )
-            for ev in conc_events:
+            for ev in teacher_events:
                 dispatch(ev)
+            await asyncio.sleep(0.01)
 
-            # Step 4: Staff Interviewer Agent
-            prep_pack, prep_events = InterviewerAgent.execute(
-                job_id=job_id,
+            # Step 4: Render Study Note to Obsidian Vault
+            rendered_note = await asyncio.to_thread(
+                VaultService.render_teacher_study_note,
                 video=video,
-                concepts=concepts,
-                total_videos=total_videos,
+                note=study_note,
             )
-            for ev in prep_events:
-                dispatch(ev)
+            rendered_notes.append(rendered_note)
 
-            # Step 5: Critic & Grounding Agent
-            audit, crit_events = CriticAgent.execute(
-                job_id=job_id,
-                video=video,
-                cleaned_transcript=transcript.cleaned_text,
-                concepts=concepts,
-                total_videos=total_videos,
+            dispatch(
+                JobEvent(
+                    job_id=job_id,
+                    step=AgentStep.SYNTHESIS,
+                    agent_name="Obsidian Notes Architect",
+                    status="completed",
+                    video_id=video.video_id,
+                    video_title=video.title,
+                    video_index=video.sequence_index,
+                    total_videos=total_videos,
+                    message=f"Rendered concise study note in vault: '{rendered_note.file_name}'.",
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                )
             )
-            for ev in crit_events:
-                dispatch(ev)
+            await asyncio.sleep(0.01)
 
-            # Step 6: Obsidian Writer Agent
-            note, write_events = WriterAgent.execute(
+            # Step 5: Playlist Memory Agent
+            updated_concepts, mem_events = await asyncio.to_thread(
+                PlaylistMemoryAgent.update_memory,
                 job_id=job_id,
                 video=video,
-                concepts=concepts,
-                prep=prep_pack,
-                total_videos=total_videos,
-            )
-            for ev in write_events:
-                dispatch(ev)
-            rendered_notes.append(note)
-
-            # Step 7: Playlist Memory Agent
-            updated_concepts, mem_events = PlaylistMemoryAgent.update_memory(
-                job_id=job_id,
-                video=video,
-                concepts=concepts,
+                concepts=study_note,
                 all_notes=rendered_notes,
                 playlist_title=playlist_title,
                 total_videos=total_videos,
@@ -147,6 +141,7 @@ class PipelineOrchestrator:
             for ev in mem_events:
                 dispatch(ev)
             cumulative_concepts = updated_concepts
+            await asyncio.sleep(0.01)
 
         # Final Done Event
         dispatch(

@@ -14,9 +14,7 @@ import {
 const AGENT_STEPS = [
   { key: 'ingestion', label: 'Ingestion Scout', icon: Compass },
   { key: 'transcript', label: 'Subtitle Cleaner', icon: FileText },
-  { key: 'concepts', label: 'Concept Extractor', icon: Brain },
-  { key: 'interview_prep', label: 'Staff Interviewer', icon: Award },
-  { key: 'critic', label: 'Grounding Critic', icon: CheckCircle2 },
+  { key: 'concepts', label: 'Teacher & Note-Maker', icon: Brain },
   { key: 'synthesis', label: 'Notes Architect', icon: PenTool },
   { key: 'memory', label: 'Playlist Memory', icon: Database },
 ];
@@ -53,7 +51,7 @@ export default function AgentStepper({ currentStep, events = [], isProcessing })
       </div>
 
       {/* Stepper Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         {AGENT_STEPS.map((step, idx) => {
           const Icon = step.icon;
           const isDone = activeIdx > idx || currentStep === 'done';

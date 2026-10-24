@@ -14,11 +14,17 @@
 - [x] **Phase 5 (React Frontend Web UI):**
   - [x] Scaffolded modern React app using Vite & Tailwind CSS in `frontend/`.
   - [x] Created `Header` with live FastAPI health status and "Export Vault (.zip)" button.
-  - [x] Created `AgentStepper`: 7-agent visual timeline with animated spinner, completed badges, and real-time SSE terminal feed.
+  - [x] Created `AgentStepper`: 5-agent visual timeline with animated spinner and real-time SSE feed.
   - [x] Created `VaultSidebar`: instant search & filter for generated Obsidian notes.
-  - [x] Created `NoteViewer`: renders Obsidian callout boxes (`[!NOTE]`, `[!DANGER]`, `[!WARNING]`), trade-off comparison tables, and code snippets.
-  - [x] Created `FlashcardModal`: interactive flip-card study mode for rapid-fire technical interview questions.
-  - [x] Verified production build (`npm run build` compiled cleanly in 4.5s).
+  - [x] Created `NoteViewer`: renders Obsidian notes with native callouts, code syntax, and interactive flashcard integration.
+  - [x] Built interactive Active-Recall Flashcard modal supporting both `#flashcards` and inline Q&As.
+  - [x] **Adopted Concise Teacher Note Blueprint:** 1–2 pages, analogy-first, 4–8 concepts max, concept-coupled interview Q&As, concept flow, minimal code with WHY comments, and summary/doubts/task footer.
+  - [x] **Enforced Additional Teacher Guardrails:**
+    - Explicit attribution: WHO does the work (LLM vs. code) & exact data flow.
+    - Complete minimal working code loop with exact matching numbers and WHY comments.
+    - Production & safety gotchas for every concept.
+    - Strict `(Extra)` tagging on all unmentioned points.
+  - [x] Verified end-to-end generation and 15/15 passing unit tests.
   - [x] Added `docs/08_REACT_FRONTEND_GUIDE.md`.
 
 ---

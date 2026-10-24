@@ -44,6 +44,19 @@ class JobManager:
         return list(cls._jobs.values())
 
     @classmethod
+    def get_latest_job(cls) -> Optional[JobState]:
+        """Returns the most recently created job."""
+        if not cls._jobs:
+            return None
+        return list(cls._jobs.values())[-1]
+
+    @classmethod
+    def clear_jobs(cls):
+        """Clears all in-memory jobs."""
+        cls._jobs.clear()
+        cls._subscribers.clear()
+
+    @classmethod
     def dispatch_event(cls, job_id: str, event: JobEvent):
         """Records an event and broadcasts it to all active SSE subscribers."""
         job = cls.get_job(job_id)

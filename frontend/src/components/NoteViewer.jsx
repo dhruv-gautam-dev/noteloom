@@ -1,12 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Copy, Check, Sparkles, FileText } from 'lucide-react';
+import {
+  Copy,
+  Check,
+  Sparkles,
+  FileText,
+  Lightbulb,
+  Cpu,
+  AlertTriangle,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
+  Maximize2,
+  Minimize2,
+  BookOpen,
+  ArrowRight,
+  Code2,
+  Target,
+  Clock,
+  Compass,
+  Eye,
+  EyeOff,
+  Sun,
+  Moon,
+  Leaf,
+  CheckCircle2,
+  Layers
+} from 'lucide-react';
 import FlashcardModal from './FlashcardModal';
+import { parseNoteContent } from '../utils/noteParser';
 
-export default function NoteViewer({ filename, content }) {
+export default function NoteViewer({
+  filename,
+  content,
+  isZenMode,
+  onToggleZenMode,
+  theme = 'paper',
+  onSelectTheme,
+}) {
   const [copied, setCopied] = useState(false);
   const [flashcardsOpen, setFlashcardsOpen] = useState(false);
+  const [fontStyle, setFontStyle] = useState('sans'); // 'sans' | 'serif'
+  const [fontSize, setFontSize] = useState('normal'); // 'compact' | 'normal' | 'relaxed'
+  const [revealedAnswers, setRevealedAnswers] = useState({});
+  const [allAnswersRevealed, setAllAnswersRevealed] = useState(false);
+
+  // Parse structured teacher note
+  const parsed = useMemo(() => {
+    return parseNoteContent(content);
+  }, [content]);
 
   const handleCopy = () => {
     if (!content) return;
@@ -15,132 +58,657 @@ export default function NoteViewer({ filename, content }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Helper: Extract flashcards formatted as:
-  // Question #flashcards
-  // ?
-  // Answer
-  const extractFlashcards = (mdText) => {
-    if (!mdText) return [];
-    const cards = [];
-    const regex = /([^?\n]+)#flashcards\s*\n\?\s*\n([^\n]+)/g;
-    let match;
-    while ((match = regex.exec(mdText)) !== null) {
-      cards.push({
-        front: match[1].trim(),
-        back: match[2].trim(),
+  // Toggle single question answer reveal
+  const toggleAnswer = (key) => {
+    setRevealedAnswers((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  // Toggle all answers at once
+  const toggleAllAnswers = () => {
+    const nextState = !allAnswersRevealed;
+    setAllAnswersRevealed(nextState);
+    if (parsed.isTeacherNote) {
+      const updated = {};
+      parsed.concepts.forEach((c) => {
+        c.interviewQuestions.forEach((_, qIdx) => {
+          updated[`${c.index}-${qIdx}`] = nextState;
+        });
+      });
+      setRevealedAnswers(updated);
+    }
+  };
+
+  // Extract flashcards from parsed data or markdown
+  const flashcards = useMemo(() => {
+    if (!content) return [];
+    if (parsed.isTeacherNote && parsed.concepts.length > 0) {
+      const cards = [];
+      parsed.concepts.forEach((c) => {
+        c.interviewQuestions.forEach((q) => {
+          cards.push({
+            front: q.question,
+            back: q.answer,
+          });
+        });
+      });
+      if (cards.length > 0) return cards;
+    }
+
+    // Fallback regex matching
+    const fallbackCards = [];
+    const qPattern = /-\s*\*\*Q(?:\s*\(Extra\))?:\*\*\s*(.+?)\n\s*-\s*\*\*A:\*\*\s*(.+?)(?=\n\s*-|\n\n|$)/gs;
+    let qMatch;
+    while ((qMatch = qPattern.exec(content)) !== null) {
+      fallbackCards.push({
+        front: qMatch[1].trim(),
+        back: qMatch[2].trim(),
       });
     }
-    return cards;
-  };
+    return fallbackCards;
+  }, [content, parsed]);
 
-  const flashcards = extractFlashcards(content);
+  // Theme-specific CSS classes
+  const themeStyles = {
+    paper: {
+      canvas: 'bg-[#FAF7F2] text-[#1C1917]',
+      card: 'bg-white border-[#E7E2DA] shadow-sm',
+      cardHover: 'hover:border-[#D6CEC1]',
+      textMuted: 'text-[#68635B]',
+      textHeading: 'text-[#1C1917]',
+      accentBg: 'bg-[#F2ECE1]',
+      accentBorder: 'border-[#E2D8C7]',
+      topBar: 'bg-[#FAF7F2]/90 border-[#E7E2DA]',
+      analogyBg: 'bg-gradient-to-br from-[#FEF8EC] to-[#FDF4E1] border-[#EED9A6] text-[#714B15]',
+      analogyBadge: 'bg-[#F9E6BF] text-[#784E14] border-[#E7C687]',
+      flowBg: 'bg-[#F3F7FA] border-[#D1E1EC] text-[#184563]',
+      exampleBg: 'bg-[#F1F8F5] border-[#CFE8DD] text-[#145337]',
+      dangerBg: 'bg-[#FEF2F1] border-[#F9CBC5] text-[#912023]',
+      codeBg: 'bg-[#181D26] text-[#E2E8F0]',
+    },
+    dark: {
+      canvas: 'bg-[#0B0F17] text-[#E2E8F0]',
+      card: 'bg-[#111827] border-[#1F293D] shadow-md',
+      cardHover: 'hover:border-[#2E3E5C]',
+      textMuted: 'text-[#94A3B8]',
+      textHeading: 'text-white',
+      accentBg: 'bg-[#172033]',
+      accentBorder: 'border-[#22304A]',
+      topBar: 'bg-[#0B0F17]/90 border-[#1F293D]',
+      analogyBg: 'bg-gradient-to-br from-amber-950/25 to-amber-900/15 border-amber-500/30 text-amber-100',
+      analogyBadge: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+      flowBg: 'bg-sky-950/25 border-sky-500/30 text-sky-100',
+      exampleBg: 'bg-emerald-950/25 border-emerald-500/30 text-emerald-100',
+      dangerBg: 'bg-rose-950/30 border-rose-500/30 text-rose-100',
+      codeBg: 'bg-[#06090F] text-[#E2E8F0]',
+    },
+    zen: {
+      canvas: 'bg-[#F2F5F0] text-[#142217]',
+      card: 'bg-white border-[#E0E7DC] shadow-sm',
+      cardHover: 'hover:border-[#CBD6C5]',
+      textMuted: 'text-[#55695A]',
+      textHeading: 'text-[#142217]',
+      accentBg: 'bg-[#E5ECE0]',
+      accentBorder: 'border-[#D1DDCB]',
+      topBar: 'bg-[#F2F5F0]/90 border-[#E0E7DC]',
+      analogyBg: 'bg-gradient-to-br from-[#FAF8ED] to-[#F5F2DF] border-[#DFDAAE] text-[#5C5517]',
+      analogyBadge: 'bg-[#EFE9B9] text-[#554E15] border-[#D9D193]',
+      flowBg: 'bg-[#EEF5F8] border-[#CCE0EA] text-[#1B4B61]',
+      exampleBg: 'bg-[#EDF6F0] border-[#C8E4D1] text-[#13572E]',
+      dangerBg: 'bg-[#FDF2F0] border-[#F6CBC5] text-[#8C231F]',
+      codeBg: 'bg-[#151F19] text-[#E2E8F0]',
+    },
+  }[theme] || themeStyles.paper;
 
-  // Custom renderer for Obsidian callouts in markdown
-  const renderCallout = (children) => {
-    // Check if children contain [!NOTE], [!WARNING], [!DANGER]
-    return <blockquote className="my-3 pl-4 border-l-2 border-indigo-500 italic text-slate-300">{children}</blockquote>;
-  };
+  // Font family and size classes
+  const fontClass = fontStyle === 'serif' ? 'font-reading-serif' : 'font-sans';
+  const sizeClass = {
+    compact: 'text-sm leading-normal',
+    normal: 'text-base leading-relaxed',
+    relaxed: 'text-lg leading-loose',
+  }[fontSize];
 
   if (!content) {
     return (
-      <div className="flex-1 bg-slate-900/60 border border-slate-800 rounded-2xl p-12 flex flex-col items-center justify-center text-center shadow-lg">
-        <FileText className="w-12 h-12 text-slate-700 mb-3" />
-        <h3 className="text-base font-semibold text-slate-300 mb-1">No Note Selected</h3>
-        <p className="text-xs text-slate-500 max-w-sm">
-          Select a note from the left sidebar to preview its Obsidian study content, trade-offs, and interview questions.
+      <div className={`flex-1 rounded-3xl p-12 flex flex-col items-center justify-center text-center border ${themeStyles.canvas} ${themeStyles.card}`}>
+        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4">
+          <BookOpen className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+        </div>
+        <h3 className={`text-lg font-bold mb-1 ${themeStyles.textHeading}`}>No Study Note Selected</h3>
+        <p className={`text-sm max-w-md ${themeStyles.textMuted}`}>
+          Choose a lecture from the sidebar on the left to start revising concise, interview-ready concepts and mental models.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 bg-slate-900/60 border border-slate-800 rounded-2xl flex flex-col h-full shadow-lg overflow-hidden">
-      {/* Top Action Bar */}
-      <div className="px-6 py-4 border-b border-slate-800 bg-slate-950/40 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4 text-indigo-400" />
-          <span className="font-semibold text-sm text-white truncate max-w-md">{filename}</span>
+    <div className={`flex-1 rounded-3xl border flex flex-col h-full overflow-hidden transition-colors duration-200 ${themeStyles.canvas} ${themeStyles.card}`}>
+      {/* Sleek Reading Toolbar */}
+      <div className={`px-6 py-3.5 border-b backdrop-blur-md sticky top-0 z-20 flex items-center justify-between flex-wrap gap-3 ${themeStyles.topBar}`}>
+        {/* Note Title & Filename */}
+        <div className="flex items-center gap-2.5 truncate max-w-sm sm:max-w-md">
+          <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <BookOpen className="w-4 h-4" />
+          </span>
+          <div className="truncate">
+            <div className={`text-xs font-bold truncate ${themeStyles.textHeading}`}>
+              {parsed.meta.video_title || filename}
+            </div>
+            {parsed.meta.channel && (
+              <div className={`text-[11px] truncate ${themeStyles.textMuted}`}>
+                {parsed.meta.channel} {parsed.meta.day_number ? `• Day ${parsed.meta.day_number}` : ''}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {flashcards.length > 0 && (
+        {/* Reading Controls */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Active Recall Answer Toggle */}
+          {parsed.isTeacherNote && (
             <button
-              onClick={() => setFlashcardsOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-xs font-semibold text-indigo-300 transition shadow-sm"
+              onClick={toggleAllAnswers}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
+                allAnswersRevealed
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                  : 'bg-transparent hover:bg-black/5 dark:hover:bg-white/5 border-transparent text-slate-500'
+              }`}
+              title={allAnswersRevealed ? 'Hide Answers for active recall' : 'Show all answers'}
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Study {flashcards.length} Flashcards</span>
+              {allAnswersRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{allAnswersRevealed ? 'Hide Answers' : 'Recall Mode'}</span>
             </button>
           )}
 
+          {/* Flashcard Modal Button */}
+          {flashcards.length > 0 && (
+            <button
+              onClick={() => setFlashcardsOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{flashcards.length} Cards</span>
+            </button>
+          )}
+
+          {/* Typography Mode: Sans vs Serif */}
+          <div className={`flex items-center p-0.5 rounded-xl border ${themeStyles.accentBorder} ${themeStyles.accentBg}`}>
+            <button
+              onClick={() => setFontStyle('sans')}
+              className={`px-2 py-1 rounded-lg text-xs font-medium transition ${
+                fontStyle === 'sans' ? 'bg-white dark:bg-slate-800 shadow-xs font-bold text-slate-900 dark:text-white' : 'text-slate-500'
+              }`}
+              title="Modern Clean Sans"
+            >
+              Sans
+            </button>
+            <button
+              onClick={() => setFontStyle('serif')}
+              className={`px-2 py-1 rounded-lg text-xs font-reading-serif font-medium transition ${
+                fontStyle === 'serif' ? 'bg-white dark:bg-slate-800 shadow-xs font-bold text-slate-900 dark:text-white' : 'text-slate-500'
+              }`}
+              title="Editorial Book Serif"
+            >
+              Serif
+            </button>
+          </div>
+
+          {/* Theme Selector */}
+          <div className={`flex items-center p-0.5 rounded-xl border ${themeStyles.accentBorder} ${themeStyles.accentBg}`}>
+            <button
+              onClick={() => onSelectTheme('paper')}
+              className={`p-1.5 rounded-lg text-xs transition ${theme === 'paper' ? 'bg-white shadow-xs text-amber-700' : 'text-slate-400 hover:text-slate-600'}`}
+              title="Warm Paper (Notion Light)"
+            >
+              <Sun className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onSelectTheme('dark')}
+              className={`p-1.5 rounded-lg text-xs transition ${theme === 'dark' ? 'bg-slate-800 shadow-xs text-indigo-300' : 'text-slate-400 hover:text-slate-200'}`}
+              title="Midnight Obsidian"
+            >
+              <Moon className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onSelectTheme('zen')}
+              className={`p-1.5 rounded-lg text-xs transition ${theme === 'zen' ? 'bg-white shadow-xs text-emerald-700' : 'text-slate-400 hover:text-slate-600'}`}
+              title="Matcha Zen"
+            >
+              <Leaf className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Zen Focus Mode Button */}
+          {onToggleZenMode && (
+            <button
+              onClick={onToggleZenMode}
+              className={`p-2 rounded-xl border transition ${themeStyles.accentBorder} ${themeStyles.cardHover} ${themeStyles.textMuted}`}
+              title={isZenMode ? 'Exit Zen Mode (Show Sidebar)' : 'Zen Focus Mode (Hide Sidebar)'}
+            >
+              {isZenMode ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+          )}
+
+          {/* Copy Button */}
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition"
+            className={`p-2 rounded-xl border transition ${themeStyles.accentBorder} ${themeStyles.cardHover} ${themeStyles.textMuted}`}
+            title="Copy Raw Markdown"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Copied!' : 'Copy Markdown'}</span>
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
 
-      {/* Markdown Content Area */}
-      <div className="flex-1 overflow-y-auto p-8 prose prose-invert prose-indigo max-w-none text-slate-200 text-sm leading-relaxed">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            h1: ({ node, ...props }) => <h1 className="text-2xl font-bold text-white border-b border-slate-800 pb-3 mb-6" {...props} />,
-            h2: ({ node, ...props }) => <h2 className="text-lg font-bold text-indigo-200 mt-8 mb-4 flex items-center gap-2" {...props} />,
-            h3: ({ node, ...props }) => <h3 className="text-base font-semibold text-white mt-6 mb-2" {...props} />,
-            h4: ({ node, ...props }) => <h4 className="text-sm font-semibold text-slate-200 mt-4 mb-1" {...props} />,
-            table: ({ node, ...props }) => (
-              <div className="overflow-x-auto my-6 rounded-xl border border-slate-800 bg-slate-950/60">
-                <table className="w-full text-left text-xs border-collapse" {...props} />
-              </div>
-            ),
-            th: ({ node, ...props }) => <th className="bg-slate-900 px-4 py-3 font-semibold text-indigo-300 border-b border-slate-800" {...props} />,
-            td: ({ node, ...props }) => <td className="px-4 py-3 border-b border-slate-900/60 text-slate-300 align-top" {...props} />,
-            code: ({ node, inline, ...props }) =>
-              inline ? (
-                <code className="px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 font-mono text-xs" {...props} />
-              ) : (
-                <code className="block p-4 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs overflow-x-auto text-emerald-300" {...props} />
-              ),
-            blockquote: ({ node, children, ...props }) => {
-              // Simple check for callouts text
-              const textContent = String(children?.[0]?.props?.children || '');
-              if (textContent.includes('[!NOTE]')) {
-                return (
-                  <div className="callout callout-note">
-                    <div className="callout-title">💡 60-Second Elevator Pitch</div>
-                    <div>{children}</div>
+      {/* Main Reading Canvas */}
+      <div className={`flex-1 overflow-y-auto px-6 sm:px-12 lg:px-16 py-8 ${fontClass}`}>
+        <div className="max-w-3xl mx-auto space-y-10">
+          {parsed.isTeacherNote ? (
+            <>
+              {/* Note Header & Goal Banner */}
+              <header className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                    Day {parsed.meta.day_number || '01'}
+                  </span>
+                  {parsed.meta.topic && (
+                    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                      {parsed.meta.topic}
+                    </span>
+                  )}
+                  <span className={`flex items-center gap-1 text-xs ${themeStyles.textMuted}`}>
+                    <Clock className="w-3.5 h-3.5" />
+                    ~5 min revision
+                  </span>
+                  <span className={`text-xs ${themeStyles.textMuted}`}>•</span>
+                  <span className={`text-xs ${themeStyles.textMuted}`}>
+                    {parsed.concepts.length} Core Concepts
+                  </span>
+                </div>
+
+                <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${themeStyles.textHeading}`}>
+                  {parsed.title}
+                </h1>
+
+                {/* The Goal Card */}
+                {parsed.goal && (
+                  <div className={`p-4 rounded-2xl border flex items-start gap-3.5 ${themeStyles.accentBg} ${themeStyles.accentBorder}`}>
+                    <div className="p-2 rounded-xl bg-amber-500 text-white mt-0.5 shadow-xs">
+                      <Target className="w-4 h-4" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                        Action Goal
+                      </div>
+                      <p className={`text-sm sm:text-base font-medium ${themeStyles.textHeading}`}>
+                        {parsed.goal}
+                      </p>
+                      {parsed.prerequisites && (
+                        <div className={`text-xs mt-1.5 ${themeStyles.textMuted}`}>
+                          <span className="font-semibold">Prerequisites:</span> {parsed.prerequisites}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                );
-              }
-              if (textContent.includes('[!WARNING]')) {
-                return (
-                  <div className="callout callout-warning">
-                    <div className="callout-title">⚠️ Notice / Fallback</div>
-                    <div>{children}</div>
+                )}
+
+                {/* Concept Navigator Pills */}
+                {parsed.concepts.length > 0 && (
+                  <nav aria-label="Concept Navigation" className="pt-2">
+                    <div className="text-xs font-semibold uppercase tracking-wider mb-2 text-slate-400">
+                      Jump to Concept:
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {parsed.concepts.map((c) => (
+                        <a
+                          key={c.index}
+                          href={`#concept-${c.index}`}
+                          className={`px-3 py-1 rounded-xl text-xs font-medium border transition ${themeStyles.accentBg} ${themeStyles.accentBorder} ${themeStyles.cardHover} ${themeStyles.textMuted}`}
+                        >
+                          <span className="font-bold text-amber-600 dark:text-amber-400 mr-1.5">
+                            {String(c.index).padStart(2, '0')}
+                          </span>
+                          {c.name}
+                        </a>
+                      ))}
+                    </div>
+                  </nav>
+                )}
+              </header>
+
+              <div className={`h-px w-full ${themeStyles.accentBorder} border-t`} />
+
+              {/* Concepts List */}
+              <section className="space-y-8">
+                <div className="flex items-center gap-2">
+                  <span className="p-1 rounded-lg bg-indigo-500/10 text-indigo-500">
+                    <Lightbulb className="w-4 h-4" />
+                  </span>
+                  <h2 className={`text-lg font-bold tracking-tight ${themeStyles.textHeading}`}>
+                    Important Concepts & Mental Models
+                  </h2>
+                </div>
+
+                <div className="space-y-8">
+                  {parsed.concepts.map((concept) => (
+                    <article
+                      key={concept.index}
+                      id={`concept-${concept.index}`}
+                      className={`p-6 sm:p-7 rounded-3xl border transition space-y-5 scroll-mt-20 ${themeStyles.card} ${themeStyles.cardHover}`}
+                    >
+                      {/* Concept Title */}
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-3">
+                          <span className="flex-shrink-0 w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 font-bold text-sm flex items-center justify-center">
+                            {String(concept.index).padStart(2, '0')}
+                          </span>
+                          <h3 className={`text-lg sm:text-xl font-bold tracking-tight ${themeStyles.textHeading}`}>
+                            {concept.name}
+                          </h3>
+                        </div>
+                      </div>
+
+                      {/* 1. Definition */}
+                      {concept.definition && (
+                        <div className="space-y-1">
+                          <div className={`text-xs font-semibold uppercase tracking-wider ${themeStyles.textMuted}`}>
+                            Definition in Simple Words
+                          </div>
+                          <p className={`text-sm sm:text-base ${sizeClass} ${themeStyles.textHeading}`}>
+                            {concept.definition}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 2. Mental Model (Analogy Box) - THE HERO CARD */}
+                      {concept.analogy && (
+                        <div className={`p-4 sm:p-5 rounded-2xl border space-y-2 relative overflow-hidden ${themeStyles.analogyBg}`}>
+                          <div className="flex items-center justify-between">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${themeStyles.analogyBadge}`}>
+                              <Lightbulb className="w-3.5 h-3.5" />
+                              The Mental Model (Intuition First)
+                            </span>
+                          </div>
+                          <p className="text-sm sm:text-base italic font-medium leading-relaxed">
+                            "{concept.analogy}"
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 3. Who Does the Work & Data Flow */}
+                      {concept.whoDoesWork && (
+                        <div className={`p-4 rounded-2xl border space-y-1.5 ${themeStyles.flowBg}`}>
+                          <div className="flex items-center gap-2">
+                            <Cpu className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                            <span className="text-xs font-bold uppercase tracking-wider">
+                              Who Does the Work & Data Flow
+                            </span>
+                          </div>
+                          <p className="text-xs sm:text-sm font-medium leading-relaxed">
+                            {concept.whoDoesWork}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 4. Instructor's Example */}
+                      {concept.videoExample && (
+                        <div className={`p-3.5 rounded-2xl border text-xs sm:text-sm space-y-1 ${themeStyles.exampleBg}`}>
+                          <div className="font-semibold flex items-center gap-1.5">
+                            <Compass className="w-3.5 h-3.5" />
+                            <span>Instructor's Exact Walkthrough:</span>
+                          </div>
+                          <p className="italic">{concept.videoExample}</p>
+                        </div>
+                      )}
+
+                      {/* 5. Why It Matters in Production */}
+                      {concept.whyItMatters && (
+                        <div className="text-xs sm:text-sm space-y-1">
+                          <span className={`font-semibold ${themeStyles.textHeading}`}>Why it matters: </span>
+                          <span className={themeStyles.textMuted}>{concept.whyItMatters}</span>
+                        </div>
+                      )}
+
+                      {/* 6. Gotchas & Production/Safety Risk */}
+                      {(concept.gotchas.length > 0 || concept.productionGotcha) && (
+                        <div className="space-y-2 pt-1">
+                          <div className="text-xs font-semibold uppercase tracking-wider text-rose-500 flex items-center gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            <span>Gotchas & Traps</span>
+                          </div>
+                          <ul className="space-y-1.5 text-xs sm:text-sm">
+                            {concept.gotchas.map((g, gIdx) => (
+                              <li key={gIdx} className={`flex items-start gap-2 ${themeStyles.textMuted}`}>
+                                <span className="text-amber-500 mt-1">•</span>
+                                <span>{g}</span>
+                              </li>
+                            ))}
+                          </ul>
+
+                          {/* Critical Production/Safety Alert */}
+                          {concept.productionGotcha && (
+                            <div className={`mt-2 p-3.5 rounded-xl border flex items-start gap-2.5 ${themeStyles.dangerBg}`}>
+                              <span className="text-base flex-shrink-0">🚨</span>
+                              <div className="space-y-0.5 text-xs sm:text-sm">
+                                <span className="font-bold">Production & Safety Gotcha:</span>
+                                <p className="leading-relaxed">{concept.productionGotcha}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 7. Interview Questions (Active-Recall Cards) */}
+                      {concept.interviewQuestions.length > 0 && (
+                        <div className="pt-2 space-y-3">
+                          <div className="text-xs font-bold uppercase tracking-wider text-indigo-500 flex items-center gap-1.5">
+                            <HelpCircle className="w-3.5 h-3.5" />
+                            <span>Interview Questions ({concept.interviewQuestions.length})</span>
+                          </div>
+
+                          <div className="space-y-2.5">
+                            {concept.interviewQuestions.map((iq, qIdx) => {
+                              const qKey = `${concept.index}-${qIdx}`;
+                              const isRevealed = revealedAnswers[qKey] || allAnswersRevealed;
+
+                              return (
+                                <div
+                                  key={qIdx}
+                                  className={`p-3.5 sm:p-4 rounded-2xl border transition ${themeStyles.accentBg} ${themeStyles.accentBorder}`}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                                          Q{qIdx + 1}
+                                        </span>
+                                        {iq.isExtra && (
+                                          <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-violet-500/20 text-violet-400 border border-violet-500/30">
+                                            (Extra)
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className={`text-xs sm:text-sm font-semibold ${themeStyles.textHeading}`}>
+                                        {iq.question}
+                                      </p>
+                                    </div>
+
+                                    <button
+                                      onClick={() => toggleAnswer(qKey)}
+                                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+                                      title={isRevealed ? 'Hide Answer' : 'Reveal Answer'}
+                                    >
+                                      {isRevealed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                    </button>
+                                  </div>
+
+                                  {isRevealed ? (
+                                    <div className="mt-3 pt-3 border-t border-black/5 dark:border-white/5 space-y-1">
+                                      <span className="text-[11px] font-bold uppercase text-emerald-600 dark:text-emerald-400">
+                                        Model Answer:
+                                      </span>
+                                      <p className={`text-xs sm:text-sm leading-relaxed ${themeStyles.textMuted}`}>
+                                        {iq.answer}
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => toggleAnswer(qKey)}
+                                      className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                                    >
+                                      <span>Tap to test your recall</span>
+                                      <ArrowRight className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              {/* How Concepts Connect (Mental Map) */}
+              {parsed.howConceptsConnect && (
+                <section className={`p-6 sm:p-7 rounded-3xl border space-y-3 ${themeStyles.card}`}>
+                  <div className="flex items-center gap-2">
+                    <span className="p-1 rounded-lg bg-indigo-500/10 text-indigo-500">
+                      <Layers className="w-4 h-4" />
+                    </span>
+                    <h2 className={`text-base sm:text-lg font-bold tracking-tight ${themeStyles.textHeading}`}>
+                      How the Concepts Connect
+                    </h2>
                   </div>
-                );
-              }
-              if (textContent.includes('[!DANGER]')) {
-                return (
-                  <div className="callout callout-danger">
-                    <div className="callout-title">🚨 Common Candidate Traps</div>
-                    <div>{children}</div>
+                  <div className={`text-sm sm:text-base leading-relaxed ${themeStyles.textMuted} whitespace-pre-line`}>
+                    {parsed.howConceptsConnect}
                   </div>
-                );
-              }
-              return <blockquote className="my-4 pl-4 border-l-2 border-indigo-500 italic text-slate-300" {...props}>{children}</blockquote>;
-            },
-          }}
-        >
-          {content}
-        </ReactMarkdown>
+                </section>
+              )}
+
+              {/* Minimal Working Code Snippet */}
+              {parsed.code && (
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Code2 className="w-4 h-4 text-emerald-500" />
+                      <h2 className={`text-base sm:text-lg font-bold tracking-tight ${themeStyles.textHeading}`}>
+                        Complete Minimal Working Example
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(parsed.code);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className="text-xs text-slate-400 hover:text-white flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800"
+                    >
+                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>Copy Code</span>
+                    </button>
+                  </div>
+
+                  <div className={`rounded-2xl p-4 sm:p-5 font-mono text-xs overflow-x-auto shadow-inner ${themeStyles.codeBg}`}>
+                    <pre className="text-emerald-300">
+                      <code>{parsed.code}</code>
+                    </pre>
+                  </div>
+                </section>
+              )}
+
+              {/* Summary & Practice Challenge */}
+              <footer className={`p-6 sm:p-7 rounded-3xl border space-y-5 ${themeStyles.card}`}>
+                <div className="flex items-center gap-2">
+                  <span className="p-1 rounded-lg bg-emerald-500/10 text-emerald-600">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </span>
+                  <h2 className={`text-base sm:text-lg font-bold tracking-tight ${themeStyles.textHeading}`}>
+                    Summary & Application
+                  </h2>
+                </div>
+
+                {parsed.summary && (
+                  <div className="space-y-1">
+                    <div className={`text-xs font-semibold uppercase tracking-wider ${themeStyles.textMuted}`}>
+                      In Plain Words:
+                    </div>
+                    <p className={`text-sm sm:text-base leading-relaxed ${themeStyles.textHeading}`}>
+                      {parsed.summary}
+                    </p>
+                  </div>
+                )}
+
+                {parsed.practiceTask && (
+                  <div className={`p-4 rounded-2xl border space-y-1.5 ${themeStyles.exampleBg}`}>
+                    <div className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <span>🚀 Hands-On Practice Project</span>
+                    </div>
+                    <p className="text-sm font-medium leading-relaxed">
+                      {parsed.practiceTask}
+                    </p>
+                  </div>
+                )}
+
+                {parsed.openDoubts.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <div className={`text-xs font-semibold uppercase tracking-wider ${themeStyles.textMuted}`}>
+                      Open Doubts & Worth Looking Up:
+                    </div>
+                    <ul className="space-y-1 text-xs sm:text-sm">
+                      {parsed.openDoubts.map((doubt, dIdx) => (
+                        <li key={dIdx} className={`flex items-start gap-2 ${themeStyles.textMuted}`}>
+                          <span className="text-amber-500 mt-1">•</span>
+                          <span>{doubt}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </footer>
+            </>
+          ) : (
+            /* Fallback Markdown Viewer for Non-Teacher Notes (INDEX.md, GLOSSARY.md) */
+            <div className={`prose prose-sm sm:prose max-w-none ${theme === 'dark' ? 'prose-invert' : ''}`}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  h1: ({ node, ...props }) => <h1 className="text-2xl font-bold pb-2 mb-4 border-b border-black/10 dark:border-white/10" {...props} />,
+                  h2: ({ node, ...props }) => <h2 className="text-xl font-bold mt-6 mb-3 text-indigo-600 dark:text-indigo-400" {...props} />,
+                  h3: ({ node, ...props }) => <h3 className="text-lg font-semibold mt-4 mb-2" {...props} />,
+                  table: ({ node, ...props }) => (
+                    <div className="overflow-x-auto my-6 rounded-xl border border-black/10 dark:border-white/10">
+                      <table className="w-full text-left text-xs border-collapse" {...props} />
+                    </div>
+                  ),
+                  th: ({ node, ...props }) => <th className="p-3 bg-black/5 dark:bg-white/5 font-semibold" {...props} />,
+                  td: ({ node, ...props }) => <td className="p-3 border-t border-black/5 dark:border-white/5 align-top" {...props} />,
+                  code: ({ node, inline, children, ...props }) => {
+                    return inline ? (
+                      <code className="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono text-xs text-amber-700 dark:text-amber-300" {...props}>
+                        {children}
+                      </code>
+                    ) : (
+                      <code className="block p-4 rounded-xl bg-slate-900 text-emerald-300 font-mono text-xs overflow-x-auto" {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                }}
+              >
+                {content}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Interactive Flashcard Modal */}
+      {/* Interactive Active-Recall Flashcard Modal */}
       <FlashcardModal
         isOpen={flashcardsOpen}
         onClose={() => setFlashcardsOpen(false)}
@@ -149,4 +717,3 @@ export default function NoteViewer({ filename, content }) {
     </div>
   );
 }
-

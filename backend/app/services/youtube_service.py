@@ -108,21 +108,44 @@ class YouTubeService:
     def fetch_transcript(cls, video_id: str, video_title: str = "") -> TranscriptData:
         """
         Fetches the transcript for a video using youtube-transcript-api.
+        Supports both v1.2.4+ (instance API) and legacy versions (class methods).
         Gracefully handles missing, disabled, or failed transcripts.
         """
         try:
-            # First try retrieving transcript list to find best available language (default 'en')
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-            
-            # Prefer manual english, then generated english, then any available transcript
+            # Support both new v1.2.4+ instance API and legacy static method
+            transcript_list = None
+            try:
+                api = YouTubeTranscriptApi()
+                if hasattr(api, "list"):
+                    transcript_list = api.list(video_id)
+            except Exception:
+                pass
+
+            if transcript_list is None:
+                if hasattr(YouTubeTranscriptApi, "list_transcripts"):
+                    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                else:
+                    raise RuntimeError("Unable to access transcript list API.")
+
+            # Prefer English, fallback to any available language (e.g. Hindi, Spanish, etc.)
             try:
                 transcript_obj = transcript_list.find_transcript(["en", "en-US", "en-GB"])
             except Exception:
-                # Fallback to any transcript available (and translate to English if needed, or take raw)
                 transcript_obj = next(iter(transcript_list))
 
             snippets_data = transcript_obj.fetch()
-            raw_text = " ".join(s["text"] for s in snippets_data)
+            
+            # Extract text safely from either dataclass attributes (.text) or dicts (['text'])
+            text_parts = []
+            for s in snippets_data:
+                if hasattr(s, "text"):
+                    text_parts.append(s.text)
+                elif isinstance(s, dict):
+                    text_parts.append(s.get("text", ""))
+                else:
+                    text_parts.append(str(s))
+
+            raw_text = " ".join(text_parts)
             cleaned_text = cls.clean_transcript_text(raw_text)
             words = len(cleaned_text.split())
 
@@ -132,7 +155,7 @@ class YouTubeService:
                 available=True,
                 raw_text=raw_text,
                 cleaned_text=cleaned_text,
-                language=transcript_obj.language_code,
+                language=getattr(transcript_obj, "language_code", "en"),
                 word_count=words,
                 fallback_reason=None,
             )

@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
 from datetime import datetime, timezone
-from backend.app.schemas import VideoItem, VideoConcepts, JobEvent, AgentStep, RenderedNote
+from backend.app.schemas import VideoItem, VideoConcepts, JobEvent, AgentStep, RenderedNote, StudyNote
 from backend.app.config import config
 
 
@@ -42,16 +42,14 @@ class PlaylistMemoryAgent:
         cls,
         job_id: str,
         video: VideoItem,
-        concepts: VideoConcepts,
+        concepts: Any,
         all_notes: List[RenderedNote],
         playlist_title: str = "Software Engineering Interview Curriculum",
         total_videos: int = 1,
     ) -> Tuple[List[str], List[JobEvent]]:
         """
         Updates cumulative glossary and re-renders INDEX.md and GLOSSARY.md in the vault.
-        Returns:
-            List of all cumulative concept names.
-            List[JobEvent]: Streaming events.
+        Accepts either StudyNote or VideoConcepts.
         """
         events: List[JobEvent] = []
         now = datetime.now(timezone.utc).isoformat()
@@ -75,10 +73,11 @@ class PlaylistMemoryAgent:
 
         for c in concepts.concepts:
             key = c.name.strip()
+            one_line_desc = getattr(c, "definition", None) or getattr(c, "one_line", "")
             if key not in glossary:
                 glossary[key] = {
                     "name": key,
-                    "one_line": c.one_line,
+                    "one_line": one_line_desc,
                     "first_video_id": video.video_id,
                     "first_video_title": video.title,
                     "day_number": video.sequence_index,

@@ -7,7 +7,13 @@ generating fallback notes, and rendering index files.
 import re
 from pathlib import Path
 from datetime import datetime, timezone
-from backend.app.schemas import VideoItem, RenderedNote, VideoConcepts, InterviewPrepPack
+from backend.app.schemas import (
+    VideoItem,
+    RenderedNote,
+    VideoConcepts,
+    InterviewPrepPack,
+    StudyNote,
+)
 from backend.app.config import config
 
 
@@ -241,6 +247,125 @@ source_url: "{video.url}"
 ## 📇 Spaced-Repetition Flashcards (`#flashcards`)
 
 {flash_md}
+"""
+        filepath.write_text(content, encoding="utf-8")
+
+        try:
+            rel_path = str(filepath.relative_to(config.root_dir))
+        except ValueError:
+            rel_path = str(filepath)
+
+        return RenderedNote(
+            video_id=video.video_id,
+            title=video.title,
+            day_number=video.sequence_index,
+            file_name=filename,
+            relative_path=rel_path,
+            markdown_content=content,
+            is_fallback=False,
+        )
+
+    @classmethod
+    def render_teacher_study_note(
+        cls,
+        video: VideoItem,
+        note: StudyNote,
+        vault_path: Path = None,
+    ) -> RenderedNote:
+        """
+        Renders a concise, high-yield study note strictly adhering to the user's
+        pedagogical blueprint (Definition, Analogy, Video Example, Gotchas, Interview Q&As, Flow, Footer).
+        """
+        vault = vault_path or config.vault_dir
+        vault.mkdir(parents=True, exist_ok=True)
+
+        slug = cls.slugify(video.title)
+        filename = f"{video.sequence_index:02d}_{slug}.md"
+        filepath = vault / filename
+        created_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        # Build Concepts Block
+        concepts_md = []
+        for i, c in enumerate(note.concepts, start=1):
+            gotchas_md = "\n".join(f"  - {g}" for g in c.gotchas) if c.gotchas else "  - None noted"
+            
+            prod_gotcha = getattr(c, "production_safety_gotcha", None)
+            if prod_gotcha:
+                gotchas_md += f"\n  - 🚨 **Production/Safety Gotcha:** {prod_gotcha}"
+
+            who_work = getattr(c, "who_does_work", None)
+            who_work_line = f"- **Who Does the Work & Data Flow:** {who_work}\n" if who_work else ""
+
+            questions_md = []
+            for q in c.interview_questions:
+                extra_tag = " `(Extra)`" if q.is_extra else ""
+                questions_md.append(f"  - **Q{extra_tag}:** {q.question}\n    - **A:** {q.answer}")
+            q_block = "\n".join(questions_md) if questions_md else "  - None"
+
+            concepts_md.append(
+                f"""### {i}. {c.name}
+- **Definition:** {c.definition}
+- **Analogy:** {c.analogy}
+{who_work_line}- **Video's Example:** {c.video_example}
+- **Why It Matters:** {c.why_it_matters}
+- **Gotchas:**
+{gotchas_md}
+- **Interview Questions:**
+{q_block}
+"""
+            )
+        concepts_block = "\n".join(concepts_md)
+
+        # Build Code Block
+        if note.code_snippets and note.code_snippets.strip():
+            code_block = f"""```python\n{note.code_snippets.strip()}\n```"""
+        else:
+            code_block = "*No code or commands demonstrated in this video.*"
+
+        # Build Doubts List
+        doubts_md = "\n".join(f"- {d}" for d in note.open_doubts) if note.open_doubts else "- None"
+
+        content = f"""---
+video_id: "{video.video_id}"
+video_title: "{video.title}"
+channel: "{video.channel or 'Unknown'}"
+day_number: {video.sequence_index}
+topic: "{note.topic}"
+tags:
+  - interview-prep
+  - study-notes
+created_at: {created_date}
+source_url: "{video.url}"
+---
+
+# Day {video.sequence_index:02d}: {note.video_title} - {note.topic}
+
+> **Goal:** {note.one_line_goal}  
+> **Prerequisites:** {note.prerequisites}
+
+---
+
+## 💡 Important Concepts
+
+{concepts_block}
+
+---
+
+## 🔗 How the Concepts Connect
+{note.how_concepts_connect}
+
+---
+
+## 💻 Minimal Code / Commands
+{code_block}
+
+---
+
+## 📌 Summary & Practice
+- **Summary:** {note.summary}
+- **Open Doubts / To Look Up:**
+{doubts_md}
+- **Apply It (Practice Task):** {note.practice_task}
 """
         filepath.write_text(content, encoding="utf-8")
 

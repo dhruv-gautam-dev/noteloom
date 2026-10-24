@@ -16,10 +16,11 @@ Your goal is to extract the core technical concepts, deep-dive mechanisms, and a
 STRICT EXTRACTION RULES:
 1. Extract between 3 and 8 core concepts.
 2. Ground every concept in the transcript: For every concept, provide a verbatim `evidence_snippet` (6 to 50 words) copied directly from the transcript without paraphrasing or ellipsis.
-3. Plain-English: In `one_line`, explain the concept simply without confusing jargon.
-4. Mechanisms: In `how_it_works`, explain step-by-step how the data structure, algorithm, or system functions under the hood. Tag each step with `is_extra=False` if taught in the video, or `is_extra=True` if you added foundational context.
-5. Instructor Example: If the speaker provided a concrete scenario, code example, or architecture walkthrough, record it in `instructor_example`. If none was given, leave it as null.
-6. Honest Trade-offs: Note the real-world engineering trade-offs (e.g., latency vs. memory, consistency vs. availability).
+3. Language Handling: Regardless of the spoken language of the video (e.g., English, Hindi, Hinglish), formulate all concept explanations, mechanisms, why it matters, and trade-offs in crisp, professional English for software engineering interview preparation. Keep only the verbatim `evidence_snippet` in the original spoken transcript script/words.
+4. Plain-English: In `one_line`, explain the concept simply without confusing jargon.
+5. Mechanisms: In `how_it_works`, explain step-by-step how the data structure, algorithm, or system functions under the hood. Tag each step with `is_extra=False` if taught in the video, or `is_extra=True` if you added foundational context.
+6. Instructor Example: If the speaker provided a concrete scenario, code example, or architecture walkthrough, record it in `instructor_example`. If none was given, leave it as null.
+7. Honest Trade-offs: Note the real-world engineering trade-offs (e.g., latency vs. memory, consistency vs. availability).
 """
 
 

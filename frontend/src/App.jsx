@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Sparkles, Youtube, Layers, BookOpen, AlertCircle, ArrowRight } from 'lucide-react';
+import { Play, Sparkles, Youtube, Layers, BookOpen, AlertCircle, ArrowRight, RotateCcw, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import Header from './components/Header';
 import AgentStepper from './components/AgentStepper';
 import VaultSidebar from './components/VaultSidebar';
@@ -13,12 +13,19 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
 
+  // Ingestion Drawer state (collapsed by default if notes already exist)
+  const [showIngest, setShowIngest] = useState(false);
+
   // Vault Notes State
   const [notes, setNotes] = useState([]);
   const [selectedFilename, setSelectedFilename] = useState(null);
   const [selectedContent, setSelectedContent] = useState(null);
 
-  // Fetch existing notes on mount
+  // Reading Experience Settings
+  const [theme, setTheme] = useState('paper'); // 'paper' | 'dark' | 'zen'
+  const [isZenMode, setIsZenMode] = useState(false);
+
+  // Fetch existing notes
   const refreshNotes = async () => {
     try {
       const res = await fetch('/api/notes');
@@ -27,6 +34,8 @@ export default function App() {
         setNotes(data);
         if (!selectedFilename && data.length > 0) {
           loadNoteContent(data[0].filename);
+        } else if (data.length === 0) {
+          setShowIngest(true); // Open drawer if vault is empty
         }
       }
     } catch (err) {
@@ -34,8 +43,37 @@ export default function App() {
     }
   };
 
+  // Restore latest job state on page reload
+  const checkLatestJob = async () => {
+    try {
+      const res = await fetch('/api/jobs/latest');
+      if (res.ok) {
+        const job = await res.json();
+        if (job && job.job_id) {
+          setJobId(job.job_id);
+          if (job.url) setUrl(job.url);
+          if (job.events && job.events.length > 0) {
+            setEvents(job.events);
+            const lastEvent = job.events[job.events.length - 1];
+            setCurrentStep(lastEvent.step);
+          }
+          if (job.status === 'processing') {
+            setIsProcessing(true);
+            setShowIngest(true);
+            startEventStream(job.job_id);
+          } else if (job.status === 'failed') {
+            setErrorMessage(job.error_message || 'Pipeline execution failed.');
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Could not restore latest job state:', err);
+    }
+  };
+
   useEffect(() => {
     refreshNotes();
+    checkLatestJob();
   }, []);
 
   const loadNoteContent = async (filename) => {
@@ -51,12 +89,38 @@ export default function App() {
     }
   };
 
+  // Reset UI View to start clean
+  const handleResetState = () => {
+    setJobId(null);
+    setCurrentStep(null);
+    setEvents([]);
+    setIsProcessing(false);
+    setErrorMessage(null);
+    setUrl('');
+  };
+
+  // Clear all vault notes for a fresh start
+  const handleClearVault = async () => {
+    if (!window.confirm("Are you sure you want to delete all notes in the vault for a fresh start?")) return;
+    try {
+      await fetch('/api/vault/clear', { method: 'POST' });
+      setNotes([]);
+      setSelectedFilename(null);
+      setSelectedContent(null);
+      setShowIngest(true);
+      handleResetState();
+    } catch (err) {
+      console.error('Failed to clear vault:', err);
+    }
+  };
+
   // Submit YouTube URL & Start Multi-Agent Pipeline
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     if (!url.trim()) return;
 
     setIsProcessing(true);
+    setShowIngest(true);
     setErrorMessage(null);
     setEvents([]);
     setCurrentStep('ingestion');
@@ -120,105 +184,172 @@ export default function App() {
     window.location.href = '/api/download/vault';
   };
 
+  // App container theme styles
+  const appBackground = {
+    paper: 'bg-[#FAF7F2] text-[#1C1917]',
+    dark: 'bg-[#0A0E17] text-[#F1F5F9]',
+    zen: 'bg-[#F2F5F0] text-[#142217]',
+  }[theme] || 'bg-[#FAF7F2] text-[#1C1917]';
+
+  const drawerCard = {
+    paper: 'bg-white border-[#E7E2DA] shadow-sm',
+    dark: 'bg-[#111827] border-[#1F293D] shadow-xl',
+    zen: 'bg-white border-[#E0E7DC] shadow-sm',
+  }[theme] || 'bg-white border-[#E7E2DA]';
+
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col font-sans">
-      <Header onDownloadVault={handleDownloadVault} />
+    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${appBackground}`}>
+      <Header
+        onDownloadVault={handleDownloadVault}
+        showIngest={showIngest}
+        onToggleIngest={() => setShowIngest((prev) => !prev)}
+        isProcessing={isProcessing}
+        theme={theme}
+      />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col">
-        {/* Top Hero / URL Input Box */}
-        <section className="mb-8">
-          <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 lg:p-6 flex flex-col gap-4">
+        {/* Collapsible Lecture Ingestion & Pipeline Drawer */}
+        {showIngest && (
+          <section className="animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className={`rounded-3xl border p-5 sm:p-6 relative overflow-hidden ${drawerCard}`}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <Sparkles className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold">Ingest Technical Lecture or Playlist</h2>
+                    <p className="text-xs text-slate-500">
+                      Extracts grounded concepts, analogies, WHO does the work, gotchas & interview Q&As
+                    </p>
+                  </div>
+                </div>
 
-            <div className="max-w-3xl mb-6">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-3">
-                <Sparkles className="w-3.5 h-3.5" />
-                Staff-Level Technical Interview Preparation
-              </span>
-              <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-                Turn YouTube Lectures into Obsidian Interview Vaults
-              </h1>
-              <p className="text-slate-400 text-sm sm:text-base mt-2">
-                Paste any YouTube video or playlist link (DSA, System Design, Distributed Systems). Our 7-agent team extracts grounded mechanisms, FAANG mock questions, trade-offs, and spaced flashcards.
-              </p>
-            </div>
-
-            {/* Input Form */}
-            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-3xl">
-              <div className="relative flex-1">
-                <Youtube className="w-5 h-5 text-slate-500 absolute left-4 top-3.5" />
-                <input
-                  type="text"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=... or playlist URL"
-                  className="w-full pl-12 pr-4 py-3 rounded-2xl bg-slate-950/80 border border-slate-800 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 shadow-inner transition"
-                />
+                <button
+                  onClick={() => setShowIngest(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+                  title="Close Ingestion Drawer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                type="submit"
-                disabled={isProcessing || !url.trim()}
-                className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm text-white shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2 whitespace-nowrap"
-              >
-                {isProcessing ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    <span>Agents Working...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Generate Notes</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
+
+              {/* Form Input */}
+              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2.5 max-w-3xl">
+                <div className="relative flex-1">
+                  <Youtube className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                  <input
+                    type="text"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="Paste YouTube video or playlist URL..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-500/5 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:border-amber-500 transition"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isProcessing || !url.trim()}
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-xs text-white shadow-xs transition flex items-center justify-center gap-2 whitespace-nowrap"
+                >
+                  {isProcessing ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <span>Pipeline Running...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Generate Study Notes</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </>
+                  )}
+                </button>
+
+                {(events.length > 0 || errorMessage || url) && (
+                  <button
+                    type="button"
+                    onClick={handleResetState}
+                    className="px-3 py-2 rounded-xl bg-slate-500/10 hover:bg-slate-500/20 text-xs font-medium flex items-center justify-center gap-1 transition"
+                    title="Clear inputs and start fresh"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset</span>
+                  </button>
                 )}
-              </button>
-            </form>
+              </form>
 
-            {/* Example Pill Shortcuts */}
-            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-              <span className="text-slate-500">Quick Test:</span>
-              <button
-                type="button"
-                onClick={() => setUrl('https://www.youtube.com/watch?v=TEST_RAFT_CONSENSUS')}
-                className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300 transition"
-              >
-                Sample Raft Consensus (Fallback Test)
-              </button>
-            </div>
-
-            {errorMessage && (
-              <div className="mt-4 p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
-                <span>{errorMessage}</span>
+              {/* Quick Test Pill */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <span>Quick Test:</span>
+                <button
+                  type="button"
+                  onClick={() => setUrl('https://www.youtube.com/watch?v=e7oU6ZCvRrw')}
+                  className="px-2.5 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-700 dark:text-amber-300 transition"
+                >
+                  Episode 04 : Tokens Explained
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUrl('https://www.youtube.com/watch?v=solZdnrrtG4')}
+                  className="px-2.5 py-0.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 transition"
+                >
+                  Episode 08 : ReAct Intro to AI Agents
+                </button>
               </div>
-            )}
-          </div>
-        </section>
 
-        {/* Live Multi-Agent Execution Stepper */}
-        {(isProcessing || events.length > 0) && (
-          <AgentStepper
-            currentStep={currentStep}
-            events={events}
-            isProcessing={isProcessing}
-          />
+              {errorMessage && (
+                <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                  <button
+                    onClick={() => setErrorMessage(null)}
+                    className="text-xs hover:underline ml-2"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
+              {/* Real-time Agent Execution Stepper */}
+              {(isProcessing || events.length > 0) && (
+                <div className="mt-5 pt-4 border-t border-black/5 dark:border-white/5">
+                  <AgentStepper
+                    currentStep={currentStep}
+                    events={events}
+                    isProcessing={isProcessing}
+                  />
+                </div>
+              )}
+            </div>
+          </section>
         )}
 
-        {/* Notes Explorer & Obsidian Viewer */}
-        <section className="flex-1 flex flex-col md:flex-row gap-6 min-h-[550px]">
-          <VaultSidebar
-            notes={notes}
-            selectedFilename={selectedFilename}
-            onSelectNote={loadNoteContent}
-            onRefresh={refreshNotes}
-          />
+        {/* Study Sanctuary: Vault Sidebar + NoteViewer */}
+        <section className="flex-1 flex flex-col md:flex-row gap-5 min-h-[620px]">
+          {/* Collapsible Sidebar */}
+          {!isZenMode && (
+            <VaultSidebar
+              notes={notes}
+              selectedFilename={selectedFilename}
+              onSelectNote={loadNoteContent}
+              onRefresh={refreshNotes}
+              onClearVault={handleClearVault}
+              theme={theme}
+            />
+          )}
+
+          {/* Master Note Viewer */}
           <NoteViewer
             filename={selectedFilename}
             content={selectedContent}
+            isZenMode={isZenMode}
+            onToggleZenMode={() => setIsZenMode((prev) => !prev)}
+            theme={theme}
+            onSelectTheme={setTheme}
           />
         </section>
       </main>
     </div>
   );
 }
-
