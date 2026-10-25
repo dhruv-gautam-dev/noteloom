@@ -90,6 +90,7 @@ class PipelineOrchestrator:
             transcript, tr_events = await asyncio.to_thread(
                 TranscriptAgent.execute, job_id=job_id, video=video, total_videos=total_videos
             )
+            print(transcript.cleaned_text)
             for ev in tr_events:
                 dispatch(ev)
             await asyncio.sleep(0.01)
@@ -104,6 +105,9 @@ class PipelineOrchestrator:
                     cleaned_transcript=transcript.cleaned_text if transcript.available else "",
                     total_videos=total_videos,
                 )
+
+                print("study_note",study_note)
+                print("teacher_events",teacher_events)
                 for ev in teacher_events:
                     dispatch(ev)
                 await asyncio.sleep(0.01)
