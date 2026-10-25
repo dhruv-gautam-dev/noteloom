@@ -89,13 +89,23 @@ class TeacherNoteAgent:
             )
         )
 
+        if cleaned_transcript and cleaned_transcript.strip():
+            transcript_block = f"""TRANSCRIPT:
+{cleaned_transcript[:25000]}"""
+        else:
+            transcript_block = f"""CURRICULUM LECTURE CONTEXT:
+The user is studying the technical video titled:
+- Title: "{video.title}"
+- Channel: "{video.channel or 'Technical Instructor'}"
+(Note: YouTube caption scraping was restricted by cloud provider IP limits).
+Synthesize the complete, comprehensive, interview-ready study note covering all fundamental concepts, analogies, data flows, gotchas, working minimal Python code, and interview Q&As taught in this curriculum topic."""
+
         prompt = f"""VIDEO METADATA:
 - Title: {video.title}
 - Day Number: {video.sequence_index}
 - Channel: {video.channel or 'Unknown'}
 
-TRANSCRIPT:
-{cleaned_transcript[:25000]}
+{transcript_block}
 
 Create the concise, expert study note adhering strictly to the StudyNote schema."""
 

@@ -94,13 +94,25 @@ class PipelineOrchestrator:
                 dispatch(ev)
             await asyncio.sleep(0.01)
 
-            # Fallback check
-            if not transcript.available:
-                # Captions are missing -> generate fallback note immediately
+            # Step 3: Expert Teacher & Note-Maker Agent
+            study_note = None
+            try:
+                study_note, teacher_events = await asyncio.to_thread(
+                    TeacherNoteAgent.execute,
+                    job_id=job_id,
+                    video=video,
+                    cleaned_transcript=transcript.cleaned_text if transcript.available else "",
+                    total_videos=total_videos,
+                )
+                for ev in teacher_events:
+                    dispatch(ev)
+                await asyncio.sleep(0.01)
+            except Exception as e:
+                # If AI generation completely fails, fall back gracefully to outline note
                 fallback_note = await asyncio.to_thread(
                     VaultService.render_fallback_note,
                     video=video,
-                    reason=transcript.fallback_reason or "Captions unavailable.",
+                    reason=f"Study note generation failed: {str(e)}",
                 )
                 rendered_notes.append(fallback_note)
 
@@ -123,18 +135,6 @@ class PipelineOrchestrator:
                 await asyncio.to_thread(PlaylistMemoryAgent.render_index_markdown, rendered_notes, playlist_title)
                 await asyncio.sleep(0.01)
                 continue
-
-            # Step 3: Expert Teacher & Note-Maker Agent
-            study_note, teacher_events = await asyncio.to_thread(
-                TeacherNoteAgent.execute,
-                job_id=job_id,
-                video=video,
-                cleaned_transcript=transcript.cleaned_text,
-                total_videos=total_videos,
-            )
-            for ev in teacher_events:
-                dispatch(ev)
-            await asyncio.sleep(0.01)
 
             # Check LLM Educational Relevance Guardrail
             if not study_note.is_educational:
@@ -174,6 +174,9 @@ class PipelineOrchestrator:
                 video=video,
                 note=study_note,
             )
+            if not transcript.available:
+                rendered_note.is_fallback = True
+
             rendered_notes.append(rendered_note)
 
             dispatch(

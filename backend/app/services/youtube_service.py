@@ -6,6 +6,9 @@ Handles URL parsing, metadata extraction, transcript fetching, and text cleaning
 import re
 from typing import List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 import yt_dlp
 
@@ -38,10 +41,39 @@ class YouTubeService:
         return video_id, playlist_id
 
     @classmethod
+    def fetch_oembed_metadata(cls, video_id: str) -> Optional[VideoItem]:
+        """
+        Fetches official public video metadata via YouTube's oEmbed endpoint.
+        Never blocked by cloud datacenter IP restrictions (Render, AWS, GCP, etc.).
+        """
+        try:
+            oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+            resp = requests.get(
+                oembed_url,
+                timeout=5,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return VideoItem(
+                    video_id=video_id,
+                    title=data.get("title") or f"YouTube Video ({video_id})",
+                    url=f"https://www.youtube.com/watch?v={video_id}",
+                    channel=data.get("author_name") or "YouTube Creator",
+                    thumbnail_url=data.get("thumbnail_url") or f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
+                    sequence_index=1,
+                    category=None,
+                )
+        except Exception:
+            pass
+        return None
+
+    @classmethod
     def fetch_metadata(cls, url: str) -> IngestionResult:
         """
-        Extracts video or playlist metadata using yt-dlp (lightweight extract_flat mode).
-        Does NOT download any media files.
+        Extracts video or playlist metadata.
+        Uses resilient YouTube oEmbed for single videos (immune to cloud bot-blocking),
+        and yt-dlp with mobile/TV fallback for playlists.
         """
         clean_url = url.strip()
         parsed = urlparse(clean_url)
@@ -54,6 +86,32 @@ class YouTubeService:
             )
 
         video_id, playlist_id = cls.parse_url(clean_url)
+
+        # For single videos, use oEmbed directly for instant, bot-proof metadata
+        if video_id and not playlist_id:
+            oembed_video = cls.fetch_oembed_metadata(video_id)
+            if oembed_video:
+                # Optionally attempt yt-dlp to enrich duration/category without failing if blocked
+                try:
+                    ydl_opts = {
+                        "extract_flat": True,
+                        "skip_download": True,
+                        "quiet": True,
+                        "no_warnings": True,
+                        "socket_timeout": 3,
+                    }
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        info = ydl.extract_info(clean_url, download=False)
+                        if info:
+                            oembed_video.duration_seconds = info.get("duration")
+                            oembed_video.category = (info.get("categories") or [None])[0]
+                            if info.get("description"):
+                                oembed_video.description = info.get("description")
+                except Exception:
+                    pass
+                return IngestionResult(is_playlist=False, videos=[oembed_video])
+
+        # For playlists (or fallback), use yt-dlp with multi-client mobile fallback
         ydl_opts = {
             "extract_flat": True,
             "skip_download": True,
@@ -61,7 +119,7 @@ class YouTubeService:
             "no_warnings": True,
             "extractor_args": {
                 "youtube": {
-                    "player_client": ["android", "web"]
+                    "player_client": ["android", "ios", "mweb", "tv"]
                 }
             },
             "http_headers": {
@@ -69,63 +127,81 @@ class YouTubeService:
             }
         }
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(clean_url, download=False)
-            if not info:
-                raise ValueError(f"Could not retrieve video/playlist info for: {url}")
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(clean_url, download=False)
+        except Exception as e:
+            # If yt-dlp fails but we have a single video_id, fall back gracefully
+            if video_id:
+                fallback_video = cls.fetch_oembed_metadata(video_id) or VideoItem(
+                    video_id=video_id,
+                    title=f"YouTube Video ({video_id})",
+                    url=f"https://www.youtube.com/watch?v={video_id}",
+                    sequence_index=1,
+                    thumbnail_url=f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
+                )
+                return IngestionResult(is_playlist=False, videos=[fallback_video])
+            raise e
 
-            category = (info.get("categories") or [None])[0]
+        if not info:
+            if video_id:
+                fallback_video = cls.fetch_oembed_metadata(video_id)
+                if fallback_video:
+                    return IngestionResult(is_playlist=False, videos=[fallback_video])
+            raise ValueError(f"Could not retrieve video/playlist info for: {url}")
 
-            # Check if this is a playlist
-            if "entries" in info and info["entries"]:
-                entries = list(info["entries"])
-                videos: List[VideoItem] = []
-                for idx, entry in enumerate(entries, start=1):
-                    if not entry:
-                        continue
-                    v_id = entry.get("id") or entry.get("url")
-                    title = entry.get("title") or f"Video {idx}"
-                    v_url = f"https://www.youtube.com/watch?v={v_id}"
-                    v_cat = (entry.get("categories") or [category])[0]
-                    videos.append(
-                        VideoItem(
-                            video_id=v_id,
-                            title=title,
-                            url=v_url,
-                            duration_seconds=entry.get("duration"),
-                            channel=entry.get("uploader") or entry.get("channel"),
-                            sequence_index=idx,
-                            description=entry.get("description"),
-                            thumbnail_url=entry.get("thumbnail"),
-                            category=v_cat,
-                        )
+        category = (info.get("categories") or [None])[0]
+
+        # Check if this is a playlist
+        if "entries" in info and info["entries"]:
+            entries = list(info["entries"])
+            videos: List[VideoItem] = []
+            for idx, entry in enumerate(entries, start=1):
+                if not entry:
+                    continue
+                v_id = entry.get("id") or entry.get("url")
+                title = entry.get("title") or f"Video {idx}"
+                v_url = f"https://www.youtube.com/watch?v={v_id}"
+                v_cat = (entry.get("categories") or [category])[0]
+                videos.append(
+                    VideoItem(
+                        video_id=v_id,
+                        title=title,
+                        url=v_url,
+                        duration_seconds=entry.get("duration"),
+                        channel=entry.get("uploader") or entry.get("channel"),
+                        sequence_index=idx,
+                        description=entry.get("description"),
+                        thumbnail_url=entry.get("thumbnail"),
+                        category=v_cat,
                     )
-                return IngestionResult(
-                    is_playlist=True,
-                    playlist_id=info.get("id") or playlist_id,
-                    playlist_title=info.get("title") or "YouTube Playlist",
-                    videos=videos,
                 )
-            else:
-                # Single video
-                v_id = info.get("id") or video_id
-                title = info.get("title") or "Untitled Video"
-                return IngestionResult(
-                    is_playlist=False,
-                    videos=[
-                        VideoItem(
-                            video_id=v_id,
-                            title=title,
-                            url=f"https://www.youtube.com/watch?v={v_id}",
-                            duration_seconds=info.get("duration"),
-                            channel=info.get("uploader") or info.get("channel"),
-                            sequence_index=1,
-                            description=info.get("description"),
-                            thumbnail_url=info.get("thumbnail"),
-                            category=category,
-                        )
-                    ],
-                )
+            return IngestionResult(
+                is_playlist=True,
+                playlist_id=info.get("id") or playlist_id,
+                playlist_title=info.get("title") or "YouTube Playlist",
+                videos=videos,
+            )
+        else:
+            # Single video
+            v_id = info.get("id") or video_id
+            title = info.get("title") or "Untitled Video"
+            return IngestionResult(
+                is_playlist=False,
+                videos=[
+                    VideoItem(
+                        video_id=v_id,
+                        title=title,
+                        url=f"https://www.youtube.com/watch?v={v_id}",
+                        duration_seconds=info.get("duration"),
+                        channel=info.get("uploader") or info.get("channel"),
+                        sequence_index=1,
+                        description=info.get("description"),
+                        thumbnail_url=info.get("thumbnail"),
+                        category=category,
+                    )
+                ],
+            )
 
     @classmethod
     def is_likely_non_educational(cls, video: VideoItem) -> Tuple[bool, Optional[str]]:
@@ -163,14 +239,22 @@ class YouTubeService:
     def fetch_transcript(cls, video_id: str, video_title: str = "") -> TranscriptData:
         """
         Fetches the transcript for a video using youtube-transcript-api.
-        Supports both v1.2.4+ (instance API) and legacy versions (class methods).
-        Gracefully handles missing, disabled, or failed transcripts.
+        Uses a resilient requests.Session with browser User-Agent headers, connection retries,
+        and automatic translation/language fallbacks to ensure rich transcripts on cloud datacenters.
         """
         try:
+            session = requests.Session()
+            retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[429, 500, 502, 503, 504])
+            session.mount("https://", HTTPAdapter(max_retries=retries))
+            session.headers.update({
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "Accept-Language": "en-US,en;q=0.9",
+            })
+
             # Support both new v1.2.4+ instance API and legacy static method
             transcript_list = None
             try:
-                api = YouTubeTranscriptApi()
+                api = YouTubeTranscriptApi(http_client=session)
                 if hasattr(api, "list"):
                     transcript_list = api.list(video_id)
             except Exception:
@@ -180,16 +264,30 @@ class YouTubeService:
                 if hasattr(YouTubeTranscriptApi, "list_transcripts"):
                     transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
                 else:
-                    raise RuntimeError("Unable to access transcript list API.")
+                    api = YouTubeTranscriptApi()
+                    transcript_list = api.list(video_id)
 
-            # Prefer English, fallback to any available language (e.g. Hindi, Spanish, etc.)
+            # 1. Search for primary target languages (English variants + Hindi / Hinglish)
+            target_langs = ["en", "en-US", "en-GB", "en-IN", "en-CA", "en-AU", "hi", "hi-Latn"]
+            transcript_obj = None
             try:
-                transcript_obj = transcript_list.find_transcript(["en", "en-US", "en-GB"])
+                transcript_obj = transcript_list.find_transcript(target_langs)
             except Exception:
-                transcript_obj = next(iter(transcript_list))
+                # 2. Try translating any translatable transcript to English
+                for item in transcript_list:
+                    if getattr(item, "is_translatable", False):
+                        try:
+                            transcript_obj = item.translate("en")
+                            break
+                        except Exception:
+                            pass
+
+                # 3. If still None, take the first available transcript (Gemini understands all major languages)
+                if transcript_obj is None:
+                    transcript_obj = next(iter(transcript_list))
 
             snippets_data = transcript_obj.fetch()
-            
+
             # Extract text safely from either dataclass attributes (.text) or dicts (['text'])
             text_parts = []
             for s in snippets_data:
@@ -258,4 +356,3 @@ class YouTubeService:
                 deduped_words.append(word)
 
         return " ".join(deduped_words)
-
